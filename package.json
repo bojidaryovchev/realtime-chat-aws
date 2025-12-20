@@ -1,0 +1,25 @@
+{
+  "name": "realtime-chat-aws",
+  "version": "1.0.0",
+  "description": "Production-ready realtime chat infrastructure on AWS using Pulumi",
+  "main": "index.ts",
+  "scripts": {
+    "build": "tsc",
+    "lint": "eslint src/**/*.ts",
+    "format": "prettier --write \"**/*.ts\""
+  },
+  "devDependencies": {
+    "@types/node": "20.10.8",
+    "@typescript-eslint/eslint-plugin": "6.0.0",
+    "@typescript-eslint/parser": "6.0.0",
+    "eslint": "8.0.1",
+    "prettier": "3.1.1",
+    "typescript": "5.3.3"
+  },
+  "dependencies": {
+    "@pulumi/aws": "6.20.1",
+    "@pulumi/awsx": "2.5.0",
+    "@pulumi/pulumi": "3.213.0",
+    "@pulumi/random": "4.15.1"
+  }
+}

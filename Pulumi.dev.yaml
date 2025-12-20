@@ -1,0 +1,23 @@
+encryptionsalt: v1:CHANGE_ME_ON_FIRST_RUN:v1
+config:
+  aws:region: us-east-1
+  realtime-chat-aws:environment: dev
+  realtime-chat-aws:domainName: ""
+  realtime-chat-aws:certificateArn: ""
+  # VPC Configuration
+  realtime-chat-aws:vpcCidr: "10.0.0.0/16"
+  realtime-chat-aws:availabilityZones: '["us-east-1a", "us-east-1b"]'
+  # ECS Configuration
+  realtime-chat-aws:apiServiceDesiredCount: "1"
+  realtime-chat-aws:apiServiceCpu: "256"
+  realtime-chat-aws:apiServiceMemory: "512"
+  realtime-chat-aws:realtimeServiceDesiredCount: "2"
+  realtime-chat-aws:realtimeServiceCpu: "512"
+  realtime-chat-aws:realtimeServiceMemory: "1024"
+  # RDS Configuration
+  realtime-chat-aws:rdsInstanceClass: db.t3.micro
+  realtime-chat-aws:rdsAllocatedStorage: "20"
+  realtime-chat-aws:rdsMultiAz: "false"
+  # ElastiCache Configuration
+  realtime-chat-aws:redisNodeType: cache.t3.micro
+  realtime-chat-aws:redisNumCacheNodes: "1"

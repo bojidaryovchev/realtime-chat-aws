@@ -1,0 +1,6 @@
+name: realtime-chat-aws
+description: Production-ready realtime chat infrastructure on AWS
+runtime:
+  name: nodejs
+  options:
+    typescript: true
