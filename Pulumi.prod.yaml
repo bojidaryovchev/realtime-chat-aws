@@ -3,6 +3,9 @@ config:
   aws:region: us-east-1
   realtime-chat-aws:environment: prod
   realtime-chat-aws:domainName: "thepersonforme.com"
+  # Auth0 Configuration
+  realtime-chat-aws:auth0Domain: "your-tenant.auth0.com"
+  realtime-chat-aws:auth0Audience: "https://api.thepersonforme.com"
   realtime-chat-aws:hostedZoneId: "Z00620731V33RF32GVJJW"
   # VPC Configuration
   realtime-chat-aws:vpcCidr: "10.0.0.0/16"
