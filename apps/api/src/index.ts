@@ -11,7 +11,7 @@ import { createRedisClient } from "./lib/redis.js";
 import { loggerOptions } from "./lib/logger.js";
 import authPlugin from "./lib/authPlugin.js";
 
-const PORT = parseInt(process.env.PORT || "3000", 10);
+const PORT = parseInt(process.env.PORT || "3002", 10);
 const HOST = process.env.HOST || "0.0.0.0";
 
 async function main() {
