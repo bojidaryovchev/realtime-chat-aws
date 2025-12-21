@@ -3,23 +3,33 @@
   "version": "1.0.0",
   "description": "Production-ready realtime chat infrastructure on AWS using Pulumi",
   "main": "index.ts",
+  "private": true,
   "scripts": {
     "build": "tsc",
-    "lint": "eslint src/**/*.ts",
-    "format": "prettier --write \"**/*.ts\""
+    "build:apps": "pnpm -r --filter './apps/*' build",
+    "build:packages": "pnpm -r --filter './packages/*' build",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "format": "prettier --write \"**/*.ts\"",
+    "db:generate": "pnpm --filter @realtime-chat/database prisma generate",
+    "db:migrate": "pnpm --filter @realtime-chat/database prisma migrate dev",
+    "db:push": "pnpm --filter @realtime-chat/database prisma db push",
+    "db:seed": "pnpm --filter @realtime-chat/database db:seed"
   },
   "devDependencies": {
-    "@types/node": "20.10.8",
-    "@typescript-eslint/eslint-plugin": "6.0.0",
-    "@typescript-eslint/parser": "6.0.0",
-    "eslint": "8.0.1",
-    "prettier": "3.1.1",
-    "typescript": "5.3.3"
+    "@eslint/js": "10.0.0",
+    "@types/node": "25.0.3",
+    "eslint": "9.39.2",
+    "globals": "16.5.0",
+    "prettier": "3.7.4",
+    "prettier-plugin-organize-imports": "4.3.0",
+    "typescript": "5.9.3",
+    "typescript-eslint": "8.50.0"
   },
   "dependencies": {
-    "@pulumi/aws": "6.20.1",
-    "@pulumi/awsx": "2.5.0",
+    "@pulumi/aws": "7.15.0",
+    "@pulumi/awsx": "3.1.0",
     "@pulumi/pulumi": "3.213.0",
-    "@pulumi/random": "4.15.1"
+    "@pulumi/random": "4.18.4"
   }
 }

@@ -10,6 +10,10 @@ export interface Config {
   domainName: string; // Domain name (e.g., thepersonforme.com)
   hostedZoneId: string; // Existing Route53 hosted zone ID - if both domainName and hostedZoneId are set, ACM cert and DNS records are created
 
+  // Auth0 Configuration
+  auth0Domain: string; // Auth0 tenant domain (e.g., your-tenant.auth0.com)
+  auth0Audience: string; // Auth0 API identifier/audience
+
   // VPC
   vpcCidr: string;
   availabilityZones: string[];
@@ -49,6 +53,10 @@ export function loadConfig(): Config {
     projectName: pulumi.getProject(),
     domainName: config.get("domainName") || "",
     hostedZoneId: config.get("hostedZoneId") || "",
+
+    // Auth0 Configuration
+    auth0Domain: config.require("auth0Domain"),
+    auth0Audience: config.require("auth0Audience"),
 
     // VPC
     vpcCidr: config.get("vpcCidr") || "10.0.0.0/16",

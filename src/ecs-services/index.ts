@@ -130,6 +130,8 @@ export function createEcsServices(
                   { name: "SQS_OFFLINE_QUEUE_URL", value: offlineQueueUrl },
                   { name: "AWS_REGION", value: region },
                   { name: "LOG_LEVEL", value: config.environment === "prod" ? "info" : "debug" },
+                  { name: "AUTH0_DOMAIN", value: config.auth0Domain },
+                  { name: "AUTH0_AUDIENCE", value: config.auth0Audience },
                 ],
                 secrets: [
                   {
@@ -267,6 +269,8 @@ export function createEcsServices(
                   { name: "SQS_OFFLINE_QUEUE_URL", value: offlineQueueUrl },
                   { name: "AWS_REGION", value: region },
                   { name: "LOG_LEVEL", value: config.environment === "prod" ? "info" : "debug" },
+                  { name: "AUTH0_DOMAIN", value: config.auth0Domain },
+                  { name: "AUTH0_AUDIENCE", value: config.auth0Audience },
                   // Socket.IO specific
                   { name: "SOCKET_IO_ADAPTER", value: "redis" },
                   { name: "SOCKET_IO_PING_TIMEOUT", value: "30000" },
