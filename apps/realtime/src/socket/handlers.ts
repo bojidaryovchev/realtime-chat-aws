@@ -6,6 +6,8 @@ import { verifyAuth0Token, getAuth0Config } from "@realtime-chat/auth";
 interface AuthenticatedSocket extends Socket {
   userId?: string;
   username?: string;
+  displayName?: string;
+  avatarUrl?: string;
   auth0Sub?: string; // Auth0 user ID (sub claim)
 }
 
@@ -62,7 +64,7 @@ export function setupSocketHandlers(io: SocketIOServer, prisma: PrismaClient, re
             ...(payload.email ? [{ email: payload.email }] : []),
           ],
         },
-        select: { id: true, username: true, displayName: true, auth0Id: true },
+        select: { id: true, username: true, displayName: true, avatarUrl: true, auth0Id: true },
       });
 
       // If user exists but doesn't have auth0Id linked, update it
@@ -70,7 +72,7 @@ export function setupSocketHandlers(io: SocketIOServer, prisma: PrismaClient, re
         user = await prisma.user.update({
           where: { id: user.id },
           data: { auth0Id: payload.sub },
-          select: { id: true, username: true, displayName: true, auth0Id: true },
+          select: { id: true, username: true, displayName: true, avatarUrl: true, auth0Id: true },
         });
       }
 
@@ -80,6 +82,8 @@ export function setupSocketHandlers(io: SocketIOServer, prisma: PrismaClient, re
 
       socket.userId = user.id;
       socket.username = user.username;
+      socket.displayName = user.displayName;
+      socket.avatarUrl = user.avatarUrl || undefined;
       socket.auth0Sub = payload.sub;
       next();
     } catch (err) {
@@ -191,6 +195,8 @@ export function setupSocketHandlers(io: SocketIOServer, prisma: PrismaClient, re
           message: {
             ...message,
             senderUsername: socket.username,
+            senderDisplayName: socket.displayName,
+            senderAvatar: socket.avatarUrl,
           },
         });
 

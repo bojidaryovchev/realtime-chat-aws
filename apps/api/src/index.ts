@@ -42,9 +42,9 @@ async function main() {
 
   // Register routes
   await fastify.register(healthRoutes, { prefix: "/health" });
-  await fastify.register(userRoutes, { prefix: "/api/users" });
-  await fastify.register(conversationRoutes, { prefix: "/api/conversations" });
-  await fastify.register(messageRoutes, { prefix: "/api/messages" });
+  await fastify.register(userRoutes, { prefix: "/users" });
+  await fastify.register(conversationRoutes, { prefix: "/conversations" });
+  await fastify.register(messageRoutes, { prefix: "/messages" });
 
   // Graceful shutdown
   const signals: NodeJS.Signals[] = ["SIGINT", "SIGTERM"];

@@ -75,19 +75,20 @@ export const conversationApi = {
 
 // Message endpoints
 export const messageApi = {
-  list: (token: string, conversationId: string, params?: { limit?: number; cursor?: string }) => {
+  list: (token: string, conversationId: string, params?: { limit?: number; before?: string }) => {
     const searchParams = new URLSearchParams();
+    searchParams.set("conversationId", conversationId);
     if (params?.limit) searchParams.set("limit", params.limit.toString());
-    if (params?.cursor) searchParams.set("cursor", params.cursor);
+    if (params?.before) searchParams.set("before", params.before);
     const query = searchParams.toString();
-    return request<MessagesResponse>(`/conversations/${conversationId}/messages${query ? `?${query}` : ""}`, { token });
+    return request<MessagesResponse>(`/messages?${query}`, { token });
   },
 
   send: (token: string, conversationId: string, data: { content: string; type?: "TEXT" | "IMAGE" | "FILE" }) =>
-    request<Message>(`/conversations/${conversationId}/messages`, {
+    request<Message>(`/messages`, {
       method: "POST",
       token,
-      body: JSON.stringify(data),
+      body: JSON.stringify({ ...data, conversationId }),
     }),
 };
 
