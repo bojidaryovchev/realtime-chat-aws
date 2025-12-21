@@ -1,4 +1,5 @@
 import * as aws from "@pulumi/aws";
+import * as pulumi from "@pulumi/pulumi";
 import { Config, getTags } from "../../config";
 
 export interface VpcOutputs {
@@ -9,6 +10,7 @@ export interface VpcOutputs {
   internetGateway: aws.ec2.InternetGateway;
   publicRouteTable: aws.ec2.RouteTable;
   privateRouteTable: aws.ec2.RouteTable;
+  vpcEndpointSecurityGroup: aws.ec2.SecurityGroup;
 }
 
 /**
@@ -143,15 +145,133 @@ export function createVpc(config: Config): VpcOutputs {
   });
 
   // Create VPC Endpoints for AWS services (reduces NAT costs)
+  const region = aws.getRegionOutput().name;
+
   // S3 Gateway Endpoint (free)
   new aws.ec2.VpcEndpoint(`${baseName}-s3-endpoint`, {
     vpcId: vpc.id,
-    serviceName: `com.amazonaws.${aws.getRegionOutput().name}.s3`,
+    serviceName: pulumi.interpolate`com.amazonaws.${region}.s3`,
     vpcEndpointType: "Gateway",
     routeTableIds: [publicRouteTable.id, privateRouteTable.id],
     tags: {
       ...tags,
       Name: `${baseName}-s3-endpoint`,
+    },
+  });
+
+  // Security group for VPC Interface Endpoints
+  const vpcEndpointSecurityGroup = new aws.ec2.SecurityGroup(
+    `${baseName}-vpce-sg`,
+    {
+      name: `${baseName}-vpce-sg`,
+      description: "Security group for VPC Interface Endpoints",
+      vpcId: vpc.id,
+      ingress: [
+        {
+          description: "HTTPS from VPC",
+          fromPort: 443,
+          toPort: 443,
+          protocol: "tcp",
+          cidrBlocks: [config.vpcCidr],
+        },
+      ],
+      egress: [
+        {
+          description: "Allow all outbound",
+          fromPort: 0,
+          toPort: 0,
+          protocol: "-1",
+          cidrBlocks: ["0.0.0.0/0"],
+        },
+      ],
+      tags: {
+        ...tags,
+        Name: `${baseName}-vpce-sg`,
+      },
+    }
+  );
+
+  // ECR API Endpoint (for docker pull)
+  new aws.ec2.VpcEndpoint(`${baseName}-ecr-api-endpoint`, {
+    vpcId: vpc.id,
+    serviceName: pulumi.interpolate`com.amazonaws.${region}.ecr.api`,
+    vpcEndpointType: "Interface",
+    subnetIds: privateSubnets.map((s) => s.id),
+    securityGroupIds: [vpcEndpointSecurityGroup.id],
+    privateDnsEnabled: true,
+    tags: {
+      ...tags,
+      Name: `${baseName}-ecr-api-endpoint`,
+    },
+  });
+
+  // ECR DKR Endpoint (for docker pull)
+  new aws.ec2.VpcEndpoint(`${baseName}-ecr-dkr-endpoint`, {
+    vpcId: vpc.id,
+    serviceName: pulumi.interpolate`com.amazonaws.${region}.ecr.dkr`,
+    vpcEndpointType: "Interface",
+    subnetIds: privateSubnets.map((s) => s.id),
+    securityGroupIds: [vpcEndpointSecurityGroup.id],
+    privateDnsEnabled: true,
+    tags: {
+      ...tags,
+      Name: `${baseName}-ecr-dkr-endpoint`,
+    },
+  });
+
+  // Secrets Manager Endpoint
+  new aws.ec2.VpcEndpoint(`${baseName}-secretsmanager-endpoint`, {
+    vpcId: vpc.id,
+    serviceName: pulumi.interpolate`com.amazonaws.${region}.secretsmanager`,
+    vpcEndpointType: "Interface",
+    subnetIds: privateSubnets.map((s) => s.id),
+    securityGroupIds: [vpcEndpointSecurityGroup.id],
+    privateDnsEnabled: true,
+    tags: {
+      ...tags,
+      Name: `${baseName}-secretsmanager-endpoint`,
+    },
+  });
+
+  // CloudWatch Logs Endpoint
+  new aws.ec2.VpcEndpoint(`${baseName}-logs-endpoint`, {
+    vpcId: vpc.id,
+    serviceName: pulumi.interpolate`com.amazonaws.${region}.logs`,
+    vpcEndpointType: "Interface",
+    subnetIds: privateSubnets.map((s) => s.id),
+    securityGroupIds: [vpcEndpointSecurityGroup.id],
+    privateDnsEnabled: true,
+    tags: {
+      ...tags,
+      Name: `${baseName}-logs-endpoint`,
+    },
+  });
+
+  // SSM Parameter Store Endpoint (for secrets)
+  new aws.ec2.VpcEndpoint(`${baseName}-ssm-endpoint`, {
+    vpcId: vpc.id,
+    serviceName: pulumi.interpolate`com.amazonaws.${region}.ssm`,
+    vpcEndpointType: "Interface",
+    subnetIds: privateSubnets.map((s) => s.id),
+    securityGroupIds: [vpcEndpointSecurityGroup.id],
+    privateDnsEnabled: true,
+    tags: {
+      ...tags,
+      Name: `${baseName}-ssm-endpoint`,
+    },
+  });
+
+  // SQS Endpoint
+  new aws.ec2.VpcEndpoint(`${baseName}-sqs-endpoint`, {
+    vpcId: vpc.id,
+    serviceName: pulumi.interpolate`com.amazonaws.${region}.sqs`,
+    vpcEndpointType: "Interface",
+    subnetIds: privateSubnets.map((s) => s.id),
+    securityGroupIds: [vpcEndpointSecurityGroup.id],
+    privateDnsEnabled: true,
+    tags: {
+      ...tags,
+      Name: `${baseName}-sqs-endpoint`,
     },
   });
 
@@ -163,5 +283,6 @@ export function createVpc(config: Config): VpcOutputs {
     internetGateway,
     publicRouteTable,
     privateRouteTable,
+    vpcEndpointSecurityGroup,
   };
 }

@@ -2,8 +2,8 @@ encryptionsalt: v1:CHANGE_ME_ON_FIRST_RUN:v1
 config:
   aws:region: us-east-1
   realtime-chat-aws:environment: prod
-  realtime-chat-aws:domainName: ""
-  realtime-chat-aws:certificateArn: ""
+  realtime-chat-aws:domainName: "thepersonforme.com"
+  realtime-chat-aws:hostedZoneId: "Z00620731V33RF32GVJJW"
   # VPC Configuration
   realtime-chat-aws:vpcCidr: "10.0.0.0/16"
   realtime-chat-aws:availabilityZones: '["us-east-1a", "us-east-1b", "us-east-1c"]'

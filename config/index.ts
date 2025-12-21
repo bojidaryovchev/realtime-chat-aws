@@ -7,8 +7,8 @@ export interface Config {
   // General
   environment: string;
   projectName: string;
-  domainName: string;
-  certificateArn: string;
+  domainName: string; // Domain name (e.g., thepersonforme.com)
+  hostedZoneId: string; // Existing Route53 hosted zone ID - if both domainName and hostedZoneId are set, ACM cert and DNS records are created
 
   // VPC
   vpcCidr: string;
@@ -32,6 +32,9 @@ export interface Config {
   // ElastiCache Redis
   redisNodeType: string;
   redisNumCacheNodes: number;
+
+  // Optional: Certificate ARN (if not creating ACM)
+  certificateArn?: string;
 }
 
 /**
@@ -39,14 +42,13 @@ export interface Config {
  */
 export function loadConfig(): Config {
   const config = new pulumi.Config();
-  const awsConfig = new pulumi.Config("aws");
 
   return {
     // General
     environment: config.require("environment"),
     projectName: pulumi.getProject(),
     domainName: config.get("domainName") || "",
-    certificateArn: config.get("certificateArn") || "",
+    hostedZoneId: config.get("hostedZoneId") || "",
 
     // VPC
     vpcCidr: config.get("vpcCidr") || "10.0.0.0/16",
@@ -68,11 +70,14 @@ export function loadConfig(): Config {
     // RDS
     rdsInstanceClass: config.get("rdsInstanceClass") || "db.t3.micro",
     rdsAllocatedStorage: config.getNumber("rdsAllocatedStorage") || 20,
-    rdsMultiAz: config.getBoolean("rdsMultiAz") || false,
+    rdsMultiAz: config.getBoolean("rdsMultiAz") ?? false,
 
     // ElastiCache Redis
     redisNodeType: config.get("redisNodeType") || "cache.t3.micro",
     redisNumCacheNodes: config.getNumber("redisNumCacheNodes") || 1,
+
+    // Optional: Certificate ARN
+    certificateArn: config.get("certificateArn"),
   };
 }
 

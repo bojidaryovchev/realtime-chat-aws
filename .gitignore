@@ -7,5 +7,10 @@ dist/
 # Pulumi
 .pulumi/
 
+# Prisma generated client
+**/prisma/generated/
+
 # Environment
 .env
+.env.*
+!.env.example

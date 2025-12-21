@@ -1,5 +1,6 @@
 import * as pulumi from "@pulumi/pulumi";
-import { getTags, loadConfig } from "./config";
+import { loadConfig } from "./config";
+import { createAcm } from "./src/acm";
 import { createAlb } from "./src/alb";
 import { createEcrRepositories } from "./src/ecr";
 import { createEcsCluster } from "./src/ecs-cluster";
@@ -8,6 +9,7 @@ import { createIamRoles } from "./src/iam";
 import { createObservability } from "./src/observability";
 import { createRds } from "./src/rds";
 import { createRedis } from "./src/redis";
+import { createRoute53 } from "./src/route53";
 import { createSecurityGroups } from "./src/security-groups";
 import { createSqsQueues } from "./src/sqs";
 import { createVpc } from "./src/vpc";
@@ -54,16 +56,31 @@ import { createVpc } from "./src/vpc";
 
 // Load configuration
 const config = loadConfig();
-const tags = getTags(config);
 
 // ==================== VPC ====================
 const vpcOutputs = createVpc(config);
 
-// ==================== Security Groups ====================
+// ==================== Security Groups = ===================
 const securityGroupOutputs = createSecurityGroups(config, vpcOutputs);
 
+// ==================== ACM Certificate (create BEFORE ALB) ====================
+// Create ACM certificate first so it can be attached to the ALB HTTPS listener
+// Only created when both domainName and hostedZoneId are provided
+let acmOutputs: ReturnType<typeof createAcm> | undefined;
+
+const dnsEnabled = config.domainName && config.hostedZoneId;
+
+if (dnsEnabled) {
+  acmOutputs = createAcm(config);
+}
+
 // ==================== ALB ====================
-const albOutputs = createAlb(config, vpcOutputs, securityGroupOutputs);
+const albOutputs = createAlb(config, vpcOutputs, securityGroupOutputs, acmOutputs);
+
+// ==================== Route 53 DNS Records (create AFTER ALB) ====================
+if (dnsEnabled) {
+  createRoute53(config, albOutputs);
+}
 
 // ==================== ECS Cluster ====================
 const ecsClusterOutputs = createEcsCluster(config);
@@ -148,5 +165,10 @@ export const dashboardName = observabilityOutputs.dashboard.dashboardName;
 export const alertTopicArn = observabilityOutputs.snsAlertTopic.arn;
 
 // Connection URLs (for application config)
-export const apiUrl = pulumi.interpolate`https://${albOutputs.alb.dnsName}/api`;
-export const socketUrl = pulumi.interpolate`https://${albOutputs.alb.dnsName}`;
+export const apiUrl = pulumi.interpolate`https://${config.domainName || albOutputs.alb.dnsName}/api`;
+export const socketUrl = pulumi.interpolate`https://${config.domainName || albOutputs.alb.dnsName}`;
+
+// DNS Outputs (if enabled)
+export const domainName = config.domainName;
+export const hostedZoneId = config.hostedZoneId;
+export const certificateArn = acmOutputs?.certificate.arn;

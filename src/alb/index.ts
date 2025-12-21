@@ -1,5 +1,6 @@
 import * as aws from "@pulumi/aws";
 import { Config, getTags } from "../../config";
+import { AcmOutputs } from "../acm";
 import { SecurityGroupOutputs } from "../security-groups";
 import { VpcOutputs } from "../vpc";
 
@@ -23,7 +24,8 @@ export interface AlbOutputs {
 export function createAlb(
   config: Config,
   vpcOutputs: VpcOutputs,
-  securityGroupOutputs: SecurityGroupOutputs
+  securityGroupOutputs: SecurityGroupOutputs,
+  acmOutputs?: AcmOutputs
 ): AlbOutputs {
   const tags = getTags(config);
   const baseName = `${config.projectName}-${config.environment}`;
@@ -123,14 +125,20 @@ export function createAlb(
   });
 
   // HTTPS Listener
-  // If no certificate ARN is provided, create a self-signed or use HTTP only for dev
+  // Use validated ACM certificate if provided, otherwise fall back to config.certificateArn
+  const certificateArn = acmOutputs?.certificateValidation.certificateArn || config.certificateArn;
+  
+  if (!certificateArn) {
+    throw new Error("Either ACM outputs or certificateArn config must be provided for HTTPS");
+  }
+
   const httpsListener = new aws.lb.Listener(`${baseName}-https-listener`, {
     loadBalancerArn: alb.arn,
     port: 443,
     protocol: "HTTPS",
     sslPolicy: "ELBSecurityPolicy-TLS13-1-2-2021-06",
-    // Certificate ARN must be provided - use ACM
-    certificateArn: config.certificateArn || undefined,
+    // Use the validated certificate ARN
+    certificateArn: certificateArn,
     defaultActions: [
       {
         type: "fixed-response",
