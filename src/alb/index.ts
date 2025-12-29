@@ -37,7 +37,7 @@ export function createAlb(
   // ==================== ALB Access Logs S3 Bucket ====================
   // Store ALB access logs for security analysis and debugging
 
-  const albLogsBucket = new aws.s3.BucketV2(`${baseName}-alb-logs`, {
+  const albLogsBucket = new aws.s3.Bucket(`${baseName}-alb-logs`, {
     bucket: `${baseName}-alb-logs`,
     forceDestroy: config.environment !== "prod", // Allow deletion in dev
     tags: {
@@ -47,7 +47,7 @@ export function createAlb(
   });
 
   // Enable server-side encryption
-  new aws.s3.BucketServerSideEncryptionConfigurationV2(`${baseName}-alb-logs-encryption`, {
+  new aws.s3.BucketServerSideEncryptionConfiguration(`${baseName}-alb-logs-encryption`, {
     bucket: albLogsBucket.id,
     rules: [
       {
@@ -68,7 +68,7 @@ export function createAlb(
   });
 
   // Lifecycle policy to expire old logs
-  new aws.s3.BucketLifecycleConfigurationV2(`${baseName}-alb-logs-lifecycle`, {
+  new aws.s3.BucketLifecycleConfiguration(`${baseName}-alb-logs-lifecycle`, {
     bucket: albLogsBucket.id,
     rules: [
       {

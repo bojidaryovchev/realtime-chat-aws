@@ -254,7 +254,7 @@ export function createVpc(config: Config): VpcOutputs {
   });
 
   // S3 Gateway Endpoint (free) - useful for ECR image layers
-  const region = aws.getRegionOutput().name;
+  const region = aws.getRegionOutput().region;
 
   new aws.ec2.VpcEndpoint(`${baseName}-s3-endpoint`, {
     vpcId: vpc.id,
