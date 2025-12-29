@@ -112,7 +112,7 @@ export interface Conversation {
   participants: Array<{
     userId: string;
     user: User;
-    role: "OWNER" | "ADMIN" | "MEMBER";
+    role: "ADMIN" | "MEMBER";
   }>;
   lastMessage?: Message;
 }

@@ -59,6 +59,10 @@ async function main() {
   });
 
   // Setup Redis adapter for horizontal scaling
+  // NOTE: Uses node-redis package because @socket.io/redis-adapter requires it.
+  // The handlers use ioredis (from @realtime-chat/common) for custom pub/sub.
+  // Future optimization: Could consolidate by using Socket.IO's built-in room
+  // broadcasting instead of custom Redis pub/sub in handlers.
   if (process.env.SOCKET_IO_ADAPTER === "redis") {
     // Use REDIS_ADAPTER_HOST for split Redis mode, otherwise fall back to REDIS_HOST
     const adapterHost = process.env.REDIS_ADAPTER_HOST || process.env.REDIS_HOST;
@@ -79,7 +83,7 @@ async function main() {
   }
 
   // Setup socket handlers
-  setupSocketHandlers(io, prisma, redis);
+  const cleanupSocketHandlers = setupSocketHandlers(io, prisma, redis);
 
   fastify.log.info("Socket.IO server initialized");
 
@@ -88,6 +92,9 @@ async function main() {
   signals.forEach((signal) => {
     process.on(signal, async () => {
       fastify.log.info(`Received ${signal}, shutting down...`);
+      
+      // Clean up socket handlers (Redis pub/sub subscriber)
+      await cleanupSocketHandlers();
       
       // Close Socket.IO connections
       io.close();

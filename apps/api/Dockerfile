@@ -15,6 +15,7 @@ COPY tsconfig.base.json ./
 # Copy shared database package
 COPY packages/database/package*.json ./packages/database/
 COPY packages/database/prisma ./packages/database/prisma/
+COPY packages/database/prisma.config.ts ./packages/database/
 COPY packages/database/src ./packages/database/src/
 COPY packages/database/tsconfig.json ./packages/database/
 

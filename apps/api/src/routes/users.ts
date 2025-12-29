@@ -1,5 +1,6 @@
 import { FastifyInstance } from "fastify";
 import { z } from "zod";
+import { getAuthenticatedUser } from "../lib/authPlugin.js";
 
 const createUserSchema = z.object({
   username: z.string().min(3).max(50),
@@ -18,8 +19,9 @@ export async function userRoutes(fastify: FastifyInstance) {
 
   // Get current authenticated user (or create if first login)
   fastify.get("/me", async (request, reply) => {
-    const auth0Sub = request.user!.sub;
-    const email = request.user!.email as string | undefined;
+    const authUser = getAuthenticatedUser(request);
+    const auth0Sub = authUser.sub;
+    const email = authUser.email as string | undefined;
 
     let user = await fastify.prisma.user.findFirst({
       where: {
@@ -75,8 +77,9 @@ export async function userRoutes(fastify: FastifyInstance) {
   // Register new user (creates user and links to Auth0)
   fastify.post("/register", async (request, reply) => {
     const body = createUserSchema.parse(request.body);
-    const auth0Sub = request.user!.sub;
-    const email = request.user!.email as string;
+    const authUser = getAuthenticatedUser(request);
+    const auth0Sub = authUser.sub;
+    const email = authUser.email as string;
 
     if (!email) {
       return reply.status(400).send({
@@ -164,7 +167,8 @@ export async function userRoutes(fastify: FastifyInstance) {
 
   // Update current user
   fastify.patch("/me", async (request, reply) => {
-    const auth0Sub = request.user!.sub;
+    const authUser = getAuthenticatedUser(request);
+    const auth0Sub = authUser.sub;
     const body = updateUserSchema.parse(request.body);
 
     if (Object.keys(body).length === 0) {

@@ -1,5 +1,6 @@
 import { FastifyInstance } from "fastify";
 import { z } from "zod";
+import { getAuthenticatedUser } from "../lib/authPlugin.js";
 
 const createConversationSchema = z.object({
   type: z.enum(["DIRECT", "GROUP"]),
@@ -14,10 +15,11 @@ export async function conversationRoutes(fastify: FastifyInstance) {
   // Create conversation
   fastify.post("/", async (request, reply) => {
     const body = createConversationSchema.parse(request.body);
+    const authUser = getAuthenticatedUser(request);
 
     // Get the authenticated user's ID
     const currentUser = await fastify.prisma.user.findFirst({
-      where: { auth0Id: request.user!.sub },
+      where: { auth0Id: authUser.sub },
       select: { id: true },
     });
 
@@ -95,10 +97,11 @@ export async function conversationRoutes(fastify: FastifyInstance) {
       limit?: string;
       offset?: string;
     };
+    const authUser = getAuthenticatedUser(request);
 
     // Get the authenticated user's ID from their Auth0 sub
     const user = await fastify.prisma.user.findFirst({
-      where: { auth0Id: request.user!.sub },
+      where: { auth0Id: authUser.sub },
       select: { id: true },
     });
 
@@ -148,10 +151,11 @@ export async function conversationRoutes(fastify: FastifyInstance) {
   fastify.post<{ Params: { id: string } }>("/:id/participants", async (request, reply) => {
     const { id } = request.params;
     const { userId } = z.object({ userId: z.string().uuid() }).parse(request.body);
+    const authUser = getAuthenticatedUser(request);
 
     // Get the authenticated user's ID
     const currentUser = await fastify.prisma.user.findFirst({
-      where: { auth0Id: request.user!.sub },
+      where: { auth0Id: authUser.sub },
       select: { id: true },
     });
 
@@ -200,10 +204,11 @@ export async function conversationRoutes(fastify: FastifyInstance) {
     "/:id/participants/:userId",
     async (request, reply) => {
       const { id, userId } = request.params;
+      const authUser = getAuthenticatedUser(request);
 
       // Get the authenticated user's ID
       const currentUser = await fastify.prisma.user.findFirst({
-        where: { auth0Id: request.user!.sub },
+        where: { auth0Id: authUser.sub },
         select: { id: true },
       });
 

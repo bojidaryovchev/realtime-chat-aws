@@ -36,7 +36,7 @@ interface ReadReceiptPayload {
   conversationId: string;
 }
 
-export function setupSocketHandlers(io: SocketIOServer, prisma: PrismaClient, redis: RedisClient) {
+export function setupSocketHandlers(io: SocketIOServer, prisma: PrismaClient, redis: RedisClient): () => Promise<void> {
   // Get Auth0 config at startup
   const auth0Config = getAuth0Config();
 
@@ -299,4 +299,10 @@ export function setupSocketHandlers(io: SocketIOServer, prisma: PrismaClient, re
     // Emit to all sockets in the conversation room on this instance
     io.to(`conversation:${conversationId}`).emit(data.type, data);
   });
+
+  // Return cleanup function for graceful shutdown
+  return async () => {
+    await subscriber.punsubscribe("conversation:*");
+    await subscriber.quit();
+  };
 }

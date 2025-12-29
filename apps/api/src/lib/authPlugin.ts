@@ -10,6 +10,19 @@ declare module "fastify" {
   }
 }
 
+/**
+ * Gets the authenticated user from the request.
+ * Use this in protected routes after the authenticate hook has run.
+ * Throws an error if user is not authenticated, providing better error messages
+ * and TypeScript type safety.
+ */
+export function getAuthenticatedUser(request: FastifyRequest): JWTPayload {
+  if (!request.user) {
+    throw new Error("Unauthorized: User not authenticated");
+  }
+  return request.user;
+}
+
 async function authPlugin(fastify: FastifyInstance) {
   const auth0Config = getAuth0Config();
 

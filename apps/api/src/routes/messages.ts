@@ -2,6 +2,7 @@ import { SQSClient, SendMessageCommand } from "@aws-sdk/client-sqs";
 import { MessageType, Prisma, UserStatus } from "@realtime-chat/database";
 import { FastifyInstance } from "fastify";
 import { z } from "zod";
+import { getAuthenticatedUser } from "../lib/authPlugin.js";
 
 const createMessageSchema = z.object({
   conversationId: z.string().uuid(),
@@ -19,10 +20,11 @@ export async function messageRoutes(fastify: FastifyInstance) {
   // Send message
   fastify.post("/", async (request, reply) => {
     const body = createMessageSchema.parse(request.body);
+    const authUser = getAuthenticatedUser(request);
 
     // Get sender ID from authenticated user
     const user = await fastify.prisma.user.findFirst({
-      where: { auth0Id: request.user!.sub },
+      where: { auth0Id: authUser.sub },
       select: { id: true },
     });
 
@@ -153,10 +155,11 @@ export async function messageRoutes(fastify: FastifyInstance) {
   // Mark messages as read
   fastify.post<{ Params: { id: string } }>("/:id/read", async (request, reply) => {
     const { id } = request.params;
+    const authUser = getAuthenticatedUser(request);
 
     // Get the authenticated user's ID (prevent impersonation)
     const currentUser = await fastify.prisma.user.findFirst({
-      where: { auth0Id: request.user!.sub },
+      where: { auth0Id: authUser.sub },
       select: { id: true },
     });
 
@@ -199,10 +202,11 @@ export async function messageRoutes(fastify: FastifyInstance) {
   // Mark messages as delivered
   fastify.post<{ Params: { id: string } }>("/:id/delivered", async (request, reply) => {
     const { id } = request.params;
+    const authUser = getAuthenticatedUser(request);
 
     // Get the authenticated user's ID (prevent impersonation)
     const currentUser = await fastify.prisma.user.findFirst({
-      where: { auth0Id: request.user!.sub },
+      where: { auth0Id: authUser.sub },
       select: { id: true },
     });
 
