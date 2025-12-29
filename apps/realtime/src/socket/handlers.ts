@@ -1,6 +1,6 @@
 import { Server as SocketIOServer, Socket } from "socket.io";
 import { PrismaClient, UserStatus, MessageType, Prisma } from "@realtime-chat/database";
-import { Redis } from "ioredis";
+import type { RedisClient } from "../lib/redis.js";
 import { verifyAuth0Token, getAuth0Config } from "@realtime-chat/auth";
 
 interface AuthenticatedSocket extends Socket {
@@ -36,7 +36,7 @@ interface ReadReceiptPayload {
   conversationId: string;
 }
 
-export function setupSocketHandlers(io: SocketIOServer, prisma: PrismaClient, redis: Redis) {
+export function setupSocketHandlers(io: SocketIOServer, prisma: PrismaClient, redis: RedisClient) {
   // Get Auth0 config at startup
   const auth0Config = getAuth0Config();
 
@@ -292,7 +292,7 @@ export function setupSocketHandlers(io: SocketIOServer, prisma: PrismaClient, re
   const subscriber = redis.duplicate();
   subscriber.psubscribe("conversation:*");
 
-  subscriber.on("pmessage", (_, channel, message) => {
+  subscriber.on("pmessage", (_pattern: string, channel: string, message: string) => {
     const conversationId = channel.split(":")[1];
     const data = JSON.parse(message);
 

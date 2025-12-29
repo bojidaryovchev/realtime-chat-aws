@@ -18,11 +18,10 @@
     "@fastify/websocket": "^8.3.1",
     "@prisma/client": "^7.0.0",
     "@realtime-chat/auth": "workspace:*",
+    "@realtime-chat/common": "workspace:*",
     "@realtime-chat/database": "workspace:*",
     "@socket.io/redis-adapter": "^8.2.1",
     "fastify": "^4.25.2",
-    "ioredis": "^5.3.2",
-    "pino": "^8.17.2",
     "redis": "^4.6.12",
     "socket.io": "^4.7.4",
     "zod": "^3.22.4"

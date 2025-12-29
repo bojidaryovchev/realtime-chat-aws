@@ -6,8 +6,7 @@ import { createBackup } from "./src/backup";
 import { createEcrRepositories } from "./src/ecr";
 import { createEcsCluster } from "./src/ecs-cluster";
 import { createEcsServices } from "./src/ecs-services";
-// Workers service disabled pending implementation - uncomment when ready
-// import { createWorkersService } from "./src/ecs-services/workers";
+import { createWorkersService } from "./src/ecs-services/workers";
 import { createIamRoles } from "./src/iam";
 import { createObservability } from "./src/observability";
 import { createRds } from "./src/rds";
@@ -126,32 +125,23 @@ const ecsServicesOutputs = createEcsServices(
 
 // ==================== ECS Workers Service ====================
 // Workers service consumes SQS queues for push notifications and offline messages.
-// Currently DISABLED pending application implementation.
-//
-// To enable:
-// 1. Build your workers app in apps/workers/ that consumes SQS queues
-// 2. Uncomment the import and createWorkersService() call below
-// 3. Uncomment workersServiceOutputs in createObservability() call
-// 4. Uncomment the workersServiceName export
-//
-// import { createWorkersService } from "./src/ecs-services/workers";
-// const workersServiceOutputs = createWorkersService(
-//   config,
-//   vpcOutputs,
-//   securityGroupOutputs,
-//   ecsClusterOutputs,
-//   iamOutputs,
-//   rdsOutputs,
-//   redisOutputs,
-//   sqsOutputs
-// );
+const workersServiceOutputs = createWorkersService(
+  config,
+  vpcOutputs,
+  securityGroupOutputs,
+  ecsClusterOutputs,
+  iamOutputs,
+  rdsOutputs,
+  redisOutputs,
+  sqsOutputs
+);
 
 // ==================== Observability ====================
 const observabilityOutputs = createObservability(
   config,
   ecsClusterOutputs,
   ecsServicesOutputs,
-  undefined, // workersServiceOutputs - disabled pending implementation
+  workersServiceOutputs,
   rdsOutputs,
   redisOutputs,
   albOutputs,
@@ -175,7 +165,7 @@ export const ecsClusterName = ecsClusterOutputs.cluster.name;
 export const ecsClusterArn = ecsClusterOutputs.cluster.arn;
 export const apiServiceName = ecsServicesOutputs.apiService.name;
 export const realtimeServiceName = ecsServicesOutputs.realtimeService.name;
-// export const workersServiceName = workersServiceOutputs.workersService.name; // Workers disabled
+export const workersServiceName = workersServiceOutputs.workersService.name;
 
 // ECR Outputs
 export const apiRepositoryUrl = ecrOutputs.apiRepository.repositoryUrl;
