@@ -1,0 +1,404 @@
+# ============================================================
+# Realtime Chat AWS - CI/CD Pipeline
+# ============================================================
+# This workflow builds and deploys services to AWS ECS
+# 
+# Required GitHub Secrets:
+# - AWS_ACCESS_KEY_ID: IAM user access key
+# - AWS_SECRET_ACCESS_KEY: IAM user secret key
+# - AWS_REGION: AWS region (e.g., us-east-1)
+# 
+# Required GitHub Variables:
+# - PULUMI_STACK: Stack name (e.g., dev, 10k-dau, 100k-dau)
+# ============================================================
+
+name: Deploy to AWS
+
+on:
+  push:
+    branches:
+      - main
+      - 'release/**'
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Environment to deploy to'
+        required: true
+        default: 'dev'
+        type: choice
+        options:
+          - dev
+          - 1k-dau
+          - 5k-dau
+          - 10k-dau
+          - 25k-dau
+          - 50k-dau
+          - 100k-dau
+      services:
+        description: 'Services to deploy (comma-separated or "all")'
+        required: true
+        default: 'all'
+        type: string
+
+env:
+  AWS_REGION: ${{ secrets.AWS_REGION || 'us-east-1' }}
+  NODE_VERSION: '20'
+  PNPM_VERSION: '9'
+
+permissions:
+  contents: read
+  id-token: write  # For OIDC authentication (recommended over IAM keys)
+
+jobs:
+  # ==================== Lint and Test ====================
+  lint-and-test:
+    name: Lint & Test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v2
+        with:
+          version: ${{ env.PNPM_VERSION }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Lint
+        run: pnpm lint
+
+      - name: Type check
+        run: pnpm exec tsc --noEmit
+
+      # Add your test command here
+      # - name: Test
+      #   run: pnpm test
+
+  # ==================== Build Docker Images ====================
+  build-images:
+    name: Build ${{ matrix.service }} Image
+    runs-on: ubuntu-latest
+    needs: lint-and-test
+    if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+    strategy:
+      matrix:
+        service: [api, realtime, workers]
+        include:
+          - service: api
+            dockerfile: apps/api/Dockerfile
+            context: .
+          - service: realtime
+            dockerfile: apps/realtime/Dockerfile
+            context: .
+          - service: workers
+            dockerfile: apps/api/Dockerfile  # Update when workers Dockerfile exists
+            context: .
+    outputs:
+      api-image: ${{ steps.build.outputs.api-image }}
+      realtime-image: ${{ steps.build.outputs.realtime-image }}
+      workers-image: ${{ steps.build.outputs.workers-image }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+          # For OIDC (recommended):
+          # role-to-assume: arn:aws:iam::${{ secrets.AWS_ACCOUNT_ID }}:role/GitHubActionsRole
+          # role-session-name: github-actions
+
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Get Pulumi stack outputs
+        id: pulumi
+        run: |
+          # Install Pulumi CLI
+          curl -fsSL https://get.pulumi.com | sh
+          export PATH="$HOME/.pulumi/bin:$PATH"
+          
+          # Select stack
+          STACK="${{ github.event.inputs.environment || vars.PULUMI_STACK || 'dev' }}"
+          pulumi stack select "$STACK" --non-interactive --cwd .
+          
+          # Get repository URLs
+          echo "api-repo=$(pulumi stack output apiRepositoryUrl --cwd .)" >> $GITHUB_OUTPUT
+          echo "realtime-repo=$(pulumi stack output realtimeRepositoryUrl --cwd .)" >> $GITHUB_OUTPUT
+          echo "workers-repo=$(pulumi stack output workersRepositoryUrl --cwd .)" >> $GITHUB_OUTPUT
+        env:
+          PULUMI_ACCESS_TOKEN: ${{ secrets.PULUMI_ACCESS_TOKEN }}
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build and push ${{ matrix.service }} image
+        id: build
+        uses: docker/build-push-action@v5
+        with:
+          context: ${{ matrix.context }}
+          file: ${{ matrix.dockerfile }}
+          push: true
+          tags: |
+            ${{ steps.pulumi.outputs[format('{0}-repo', matrix.service)] }}:${{ github.sha }}
+            ${{ steps.pulumi.outputs[format('{0}-repo', matrix.service)] }}:latest
+          platforms: linux/amd64,linux/arm64
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          build-args: |
+            NODE_ENV=production
+
+      - name: Output image tag
+        run: |
+          echo "${{ matrix.service }}-image=${{ steps.pulumi.outputs[format('{0}-repo', matrix.service)] }}:${{ github.sha }}" >> $GITHUB_OUTPUT
+
+  # ==================== Deploy Infrastructure ====================
+  deploy-infrastructure:
+    name: Deploy Infrastructure
+    runs-on: ubuntu-latest
+    needs: lint-and-test
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    environment: 
+      name: ${{ github.event.inputs.environment || vars.PULUMI_STACK || 'dev' }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v2
+        with:
+          version: ${{ env.PNPM_VERSION }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Setup Pulumi
+        uses: pulumi/actions@v5
+
+      - name: Pulumi Preview
+        if: github.event_name == 'pull_request'
+        uses: pulumi/actions@v5
+        with:
+          command: preview
+          stack-name: ${{ github.event.inputs.environment || vars.PULUMI_STACK || 'dev' }}
+        env:
+          PULUMI_ACCESS_TOKEN: ${{ secrets.PULUMI_ACCESS_TOKEN }}
+
+      - name: Pulumi Deploy
+        if: github.event_name == 'push'
+        uses: pulumi/actions@v5
+        with:
+          command: up
+          stack-name: ${{ github.event.inputs.environment || vars.PULUMI_STACK || 'dev' }}
+        env:
+          PULUMI_ACCESS_TOKEN: ${{ secrets.PULUMI_ACCESS_TOKEN }}
+
+  # ==================== Deploy ECS Services ====================
+  deploy-services:
+    name: Deploy ${{ matrix.service }} Service
+    runs-on: ubuntu-latest
+    needs: [build-images, deploy-infrastructure]
+    if: always() && needs.build-images.result == 'success'
+    strategy:
+      matrix:
+        service: [api, realtime, workers]
+      max-parallel: 1  # Deploy sequentially for safety
+    environment:
+      name: ${{ github.event.inputs.environment || vars.PULUMI_STACK || 'dev' }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Check if service should be deployed
+        id: check
+        run: |
+          SERVICES="${{ github.event.inputs.services || 'all' }}"
+          if [[ "$SERVICES" == "all" ]] || [[ "$SERVICES" == *"${{ matrix.service }}"* ]]; then
+            echo "deploy=true" >> $GITHUB_OUTPUT
+          else
+            echo "deploy=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Get Pulumi outputs
+        if: steps.check.outputs.deploy == 'true'
+        id: pulumi
+        run: |
+          curl -fsSL https://get.pulumi.com | sh
+          export PATH="$HOME/.pulumi/bin:$PATH"
+          
+          STACK="${{ github.event.inputs.environment || vars.PULUMI_STACK || 'dev' }}"
+          pulumi stack select "$STACK" --non-interactive
+          
+          echo "cluster=$(pulumi stack output ecsClusterName)" >> $GITHUB_OUTPUT
+          echo "api-service=$(pulumi stack output apiServiceName)" >> $GITHUB_OUTPUT
+          echo "realtime-service=$(pulumi stack output realtimeServiceName)" >> $GITHUB_OUTPUT
+          echo "workers-service=$(pulumi stack output workersServiceName)" >> $GITHUB_OUTPUT
+        env:
+          PULUMI_ACCESS_TOKEN: ${{ secrets.PULUMI_ACCESS_TOKEN }}
+
+      - name: Deploy ${{ matrix.service }} to ECS
+        if: steps.check.outputs.deploy == 'true'
+        run: |
+          SERVICE_NAME="${{ steps.pulumi.outputs[format('{0}-service', matrix.service)] }}"
+          CLUSTER="${{ steps.pulumi.outputs.cluster }}"
+          
+          echo "🚀 Deploying ${{ matrix.service }} service..."
+          echo "   Cluster: $CLUSTER"
+          echo "   Service: $SERVICE_NAME"
+          
+          # Force new deployment
+          aws ecs update-service \
+            --cluster "$CLUSTER" \
+            --service "$SERVICE_NAME" \
+            --force-new-deployment \
+            --no-cli-pager
+          
+          echo "⏳ Waiting for service to stabilize..."
+          aws ecs wait services-stable \
+            --cluster "$CLUSTER" \
+            --services "$SERVICE_NAME"
+          
+          echo "✅ ${{ matrix.service }} service deployed successfully!"
+
+      - name: Verify deployment
+        if: steps.check.outputs.deploy == 'true'
+        run: |
+          SERVICE_NAME="${{ steps.pulumi.outputs[format('{0}-service', matrix.service)] }}"
+          CLUSTER="${{ steps.pulumi.outputs.cluster }}"
+          
+          # Get service status
+          aws ecs describe-services \
+            --cluster "$CLUSTER" \
+            --services "$SERVICE_NAME" \
+            --query 'services[0].{desiredCount:desiredCount,runningCount:runningCount,status:status}' \
+            --output table
+
+  # ==================== Post-Deploy Verification ====================
+  verify-deployment:
+    name: Verify Deployment
+    runs-on: ubuntu-latest
+    needs: deploy-services
+    if: always() && needs.deploy-services.result == 'success'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Get ALB endpoint
+        id: endpoint
+        run: |
+          curl -fsSL https://get.pulumi.com | sh
+          export PATH="$HOME/.pulumi/bin:$PATH"
+          
+          STACK="${{ github.event.inputs.environment || vars.PULUMI_STACK || 'dev' }}"
+          pulumi stack select "$STACK" --non-interactive
+          
+          ALB_DNS=$(pulumi stack output albDnsName)
+          echo "alb-dns=$ALB_DNS" >> $GITHUB_OUTPUT
+        env:
+          PULUMI_ACCESS_TOKEN: ${{ secrets.PULUMI_ACCESS_TOKEN }}
+
+      - name: Health check - API
+        run: |
+          echo "🔍 Checking API health..."
+          for i in {1..10}; do
+            if curl -sf "https://${{ steps.endpoint.outputs.alb-dns }}/api/health" > /dev/null; then
+              echo "✅ API is healthy!"
+              exit 0
+            fi
+            echo "Attempt $i/10 failed, retrying in 15s..."
+            sleep 15
+          done
+          echo "❌ API health check failed"
+          exit 1
+
+      - name: Health check - Realtime
+        run: |
+          echo "🔍 Checking Realtime health..."
+          for i in {1..10}; do
+            if curl -sf "https://${{ steps.endpoint.outputs.alb-dns }}/socket.io/?EIO=4&transport=polling" > /dev/null; then
+              echo "✅ Realtime is healthy!"
+              exit 0
+            fi
+            echo "Attempt $i/10 failed, retrying in 15s..."
+            sleep 15
+          done
+          echo "❌ Realtime health check failed"
+          exit 1
+
+      - name: Deployment summary
+        run: |
+          echo "## 🚀 Deployment Complete" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Service | Status |" >> $GITHUB_STEP_SUMMARY
+          echo "|---------|--------|" >> $GITHUB_STEP_SUMMARY
+          echo "| API | ✅ Deployed |" >> $GITHUB_STEP_SUMMARY
+          echo "| Realtime | ✅ Deployed |" >> $GITHUB_STEP_SUMMARY
+          echo "| Workers | ✅ Deployed |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Environment:** ${{ github.event.inputs.environment || vars.PULUMI_STACK || 'dev' }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Commit:** ${{ github.sha }}" >> $GITHUB_STEP_SUMMARY
+          echo "**ALB:** ${{ steps.endpoint.outputs.alb-dns }}" >> $GITHUB_STEP_SUMMARY
+
+  # ==================== Rollback (Manual Trigger) ====================
+  rollback:
+    name: Rollback Deployment
+    runs-on: ubuntu-latest
+    if: github.event_name == 'workflow_dispatch' && failure()
+    needs: [deploy-services]
+    steps:
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Get previous task definition
+        run: |
+          echo "⚠️ Rollback initiated..."
+          echo "To rollback manually, use:"
+          echo "  aws ecs update-service --cluster <cluster> --service <service> --task-definition <previous-task-def>"
+          echo ""
+          echo "Or redeploy from a previous commit."

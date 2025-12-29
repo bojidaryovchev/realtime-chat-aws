@@ -1,9 +1,9 @@
 # ============================================================
-# Development Stack - Minimal (~$50-80/month)
+# 25k DAU Production Stack (~$500-700/month)
 # ============================================================
-# Uses public subnets with public IPs - no NAT Gateway needed
-# Suitable for: Local development, testing, CI/CD
-# Capacity: ~50-100 concurrent connections
+# Scaling product with strong growth trajectory
+# Suitable for: Series A/B startups, mid-size B2B applications
+# Capacity: ~2,500-7,500 concurrent connections, ~25,000 DAU
 # ============================================================
 
 encryptionsalt: v1:CHANGE_ME_ON_FIRST_RUN:v1
@@ -11,7 +11,7 @@ config:
   aws:region: eu-central-1
   
   # ==================== General ====================
-  realtime-chat-aws:environment: dev
+  realtime-chat-aws:environment: prod
   realtime-chat-aws:domainName: "your-domain.com"
   realtime-chat-aws:hostedZoneId: "YOUR_HOSTED_ZONE_ID"
   
@@ -21,22 +21,22 @@ config:
   
   # ==================== VPC ====================
   realtime-chat-aws:availabilityZones: '["eu-central-1a", "eu-central-1b"]'
-  realtime-chat-aws:natGateways: "0"  # No NAT needed - dev uses public subnets
+  realtime-chat-aws:natGateways: "2"
   
   # ==================== ECS - API Service ====================
-  realtime-chat-aws:apiServiceDesiredCount: "1"
-  realtime-chat-aws:apiServiceCpu: "256"
-  realtime-chat-aws:apiServiceMemory: "512"
+  realtime-chat-aws:apiServiceDesiredCount: "2"
+  realtime-chat-aws:apiServiceCpu: "512"
+  realtime-chat-aws:apiServiceMemory: "1024"
   realtime-chat-aws:apiDeregistrationDelaySeconds: "30"
   realtime-chat-aws:apiStopTimeoutSeconds: "30"
   
   # ==================== ECS - Realtime Service ====================
-  realtime-chat-aws:realtimeServiceDesiredCount: "1"
-  realtime-chat-aws:realtimeServiceCpu: "256"
-  realtime-chat-aws:realtimeServiceMemory: "512"
+  realtime-chat-aws:realtimeServiceDesiredCount: "3"
+  realtime-chat-aws:realtimeServiceCpu: "1024"
+  realtime-chat-aws:realtimeServiceMemory: "2048"
   realtime-chat-aws:realtimeMaxConnectionsPerTask: "3000"
   realtime-chat-aws:realtimeScaleOnEventLoopLagMs: "100"
-  realtime-chat-aws:realtimeScaleOnConnections: "false"
+  realtime-chat-aws:realtimeScaleOnConnections: "true"
   realtime-chat-aws:realtimeDeregistrationDelaySeconds: "120"
   realtime-chat-aws:realtimeStopTimeoutSeconds: "60"
   realtime-chat-aws:realtimeMinHealthyPercent: "50"
@@ -44,35 +44,38 @@ config:
   realtime-chat-aws:realtimeStickyDurationSeconds: "3600"
   
   # ==================== ECS - Workers Service ====================
-  realtime-chat-aws:workerServiceDesiredCount: "1"
+  realtime-chat-aws:workerServiceDesiredCount: "2"
   realtime-chat-aws:workerServiceCpu: "256"
   realtime-chat-aws:workerServiceMemory: "512"
   realtime-chat-aws:workerScaleOnQueueDepth: "100"
   realtime-chat-aws:workerScaleOnOldestMessageAge: "300"
   
   # ==================== ECS - Architecture ====================
-  realtime-chat-aws:enableGraviton: "false"  # x86_64 for dev compatibility
+  realtime-chat-aws:enableGraviton: "false"
   
   # ==================== RDS ====================
-  realtime-chat-aws:rdsInstanceClass: "db.t3.micro"
-  realtime-chat-aws:rdsAllocatedStorage: "20"
+  realtime-chat-aws:rdsInstanceClass: "db.t3.large"
+  realtime-chat-aws:rdsAllocatedStorage: "100"
   realtime-chat-aws:rdsMultiAz: "false"
-  realtime-chat-aws:enableRdsProxy: "false"
+  realtime-chat-aws:enableRdsProxy: "true"
   realtime-chat-aws:rdsProxyMaxConnectionsPercent: "80"
   realtime-chat-aws:rdsProxyIdleClientTimeout: "1800"
   realtime-chat-aws:enableRdsReadReplica: "false"
-  realtime-chat-aws:rdsReadReplicaInstanceClass: "db.t3.micro"  # Not used but required
+  realtime-chat-aws:rdsReadReplicaInstanceClass: "db.t3.large"
   
   # ==================== Redis ====================
-  realtime-chat-aws:redisNodeType: "cache.t3.micro"
-  realtime-chat-aws:redisNumCacheNodes: "1"
+  # t3.medium: 3.09GB RAM, ~$25/mo - sufficient for ~7.5k concurrent connections
+  # r6g (memory-optimized) is overkill - pub/sub and sessions use minimal memory
+  realtime-chat-aws:redisNodeType: "cache.t3.medium"
+  realtime-chat-aws:redisNumCacheNodes: "2"  # Primary + replica for HA
   realtime-chat-aws:enableRedisSplit: "false"
-  realtime-chat-aws:redisAdapterNodeType: "cache.t3.micro"
-  realtime-chat-aws:redisAdapterReplicas: "0"
-  realtime-chat-aws:redisStateNodeType: "cache.t3.micro"
-  realtime-chat-aws:redisStateReplicas: "0"
+  realtime-chat-aws:redisAdapterNodeType: "cache.t3.medium"
+  realtime-chat-aws:redisAdapterReplicas: "1"
+  realtime-chat-aws:redisStateNodeType: "cache.t3.small"
+  realtime-chat-aws:redisStateReplicas: "1"
   
   # ==================== WAF ====================
-  realtime-chat-aws:enableWaf: "false"
-  realtime-chat-aws:wafApiRateLimitPer5Min: "2000"
-  realtime-chat-aws:wafSocketRateLimitPer5Min: "5000"
+  realtime-chat-aws:enableWaf: "true"
+  realtime-chat-aws:wafApiRateLimitPer5Min: "5000"
+  realtime-chat-aws:wafSocketRateLimitPer5Min: "15000"
+

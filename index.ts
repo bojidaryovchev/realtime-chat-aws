@@ -1,10 +1,13 @@
 import * as pulumi from "@pulumi/pulumi";
-import { loadConfig } from "./config";
+import { loadConfig, validateConfig } from "./config";
 import { createAcm } from "./src/acm";
 import { createAlb } from "./src/alb";
+import { createBackup } from "./src/backup";
 import { createEcrRepositories } from "./src/ecr";
 import { createEcsCluster } from "./src/ecs-cluster";
 import { createEcsServices } from "./src/ecs-services";
+// Workers service disabled pending implementation - uncomment when ready
+// import { createWorkersService } from "./src/ecs-services/workers";
 import { createIamRoles } from "./src/iam";
 import { createObservability } from "./src/observability";
 import { createRds } from "./src/rds";
@@ -13,6 +16,7 @@ import { createRoute53 } from "./src/route53";
 import { createSecurityGroups } from "./src/security-groups";
 import { createSqsQueues } from "./src/sqs";
 import { createVpc } from "./src/vpc";
+import { createWaf } from "./src/waf";
 
 /**
  * Main Pulumi program for Realtime Chat Infrastructure
@@ -54,8 +58,9 @@ import { createVpc } from "./src/vpc";
  *         └──────────────────────┘
  */
 
-// Load configuration
+// Load and validate configuration
 const config = loadConfig();
+validateConfig(config);
 
 // ==================== VPC ====================
 const vpcOutputs = createVpc(config);
@@ -82,6 +87,9 @@ if (dnsEnabled) {
   createRoute53(config, albOutputs);
 }
 
+// ==================== WAF (Optional - prod only) ====================
+const wafOutputs = createWaf(config, albOutputs);
+
 // ==================== ECS Cluster ====================
 const ecsClusterOutputs = createEcsCluster(config);
 
@@ -91,6 +99,9 @@ const ecrOutputs = createEcrRepositories(config);
 // ==================== RDS PostgreSQL ====================
 const rdsOutputs = createRds(config, vpcOutputs, securityGroupOutputs);
 
+// ==================== AWS Backup ====================
+const backupOutputs = createBackup(config, rdsOutputs);
+
 // ==================== ElastiCache Redis ====================
 const redisOutputs = createRedis(config, vpcOutputs, securityGroupOutputs);
 
@@ -98,7 +109,7 @@ const redisOutputs = createRedis(config, vpcOutputs, securityGroupOutputs);
 const sqsOutputs = createSqsQueues(config);
 
 // ==================== IAM Roles ====================
-const iamOutputs = createIamRoles(config, sqsOutputs, rdsOutputs);
+const iamOutputs = createIamRoles(config, sqsOutputs, rdsOutputs, redisOutputs);
 
 // ==================== ECS Services ====================
 const ecsServicesOutputs = createEcsServices(
@@ -113,14 +124,38 @@ const ecsServicesOutputs = createEcsServices(
   sqsOutputs
 );
 
+// ==================== ECS Workers Service ====================
+// Workers service consumes SQS queues for push notifications and offline messages.
+// Currently DISABLED pending application implementation.
+//
+// To enable:
+// 1. Build your workers app in apps/workers/ that consumes SQS queues
+// 2. Uncomment the import and createWorkersService() call below
+// 3. Uncomment workersServiceOutputs in createObservability() call
+// 4. Uncomment the workersServiceName export
+//
+// import { createWorkersService } from "./src/ecs-services/workers";
+// const workersServiceOutputs = createWorkersService(
+//   config,
+//   vpcOutputs,
+//   securityGroupOutputs,
+//   ecsClusterOutputs,
+//   iamOutputs,
+//   rdsOutputs,
+//   redisOutputs,
+//   sqsOutputs
+// );
+
 // ==================== Observability ====================
 const observabilityOutputs = createObservability(
   config,
   ecsClusterOutputs,
   ecsServicesOutputs,
+  undefined, // workersServiceOutputs - disabled pending implementation
   rdsOutputs,
   redisOutputs,
-  albOutputs
+  albOutputs,
+  sqsOutputs
 );
 
 // ==================== Stack Outputs ====================
@@ -140,19 +175,30 @@ export const ecsClusterName = ecsClusterOutputs.cluster.name;
 export const ecsClusterArn = ecsClusterOutputs.cluster.arn;
 export const apiServiceName = ecsServicesOutputs.apiService.name;
 export const realtimeServiceName = ecsServicesOutputs.realtimeService.name;
+// export const workersServiceName = workersServiceOutputs.workersService.name; // Workers disabled
 
 // ECR Outputs
 export const apiRepositoryUrl = ecrOutputs.apiRepository.repositoryUrl;
 export const realtimeRepositoryUrl = ecrOutputs.realtimeRepository.repositoryUrl;
+export const workersRepositoryUrl = ecrOutputs.workersRepository.repositoryUrl;
 
 // RDS Outputs
 export const rdsEndpoint = rdsOutputs.dbInstance.endpoint;
 export const rdsPort = rdsOutputs.dbInstance.port;
 export const rdsSecretArn = rdsOutputs.dbCredentialsSecret.arn;
+export const rdsProxyEndpoint = rdsOutputs.rdsProxyEndpoint;
+export const dbConnectionEndpoint = rdsOutputs.dbConnectionEndpoint;
+// RDS Read Replica (when enabled)
+export const rdsReadReplicaEndpoint = rdsOutputs.dbReadReplicaEndpoint;
 
 // Redis Outputs
 export const redisEndpoint = redisOutputs.redisCluster.primaryEndpointAddress;
 export const redisPort = redisOutputs.redisCluster.port;
+// Redis split mode (when enabled, these are separate clusters)
+export const redisAdapterEndpoint = redisOutputs.adapterEndpoint;
+export const redisStateEndpoint = redisOutputs.stateEndpoint;
+// Redis AUTH secret for application configuration
+export const redisAuthSecretArn = redisOutputs.redisAuthSecret.arn;
 
 // SQS Outputs
 export const pushNotificationQueueUrl = sqsOutputs.pushNotificationQueue.url;
@@ -164,9 +210,22 @@ export const offlineMessageQueueArn = sqsOutputs.offlineMessageQueue.arn;
 export const dashboardName = observabilityOutputs.dashboard.dashboardName;
 export const alertTopicArn = observabilityOutputs.snsAlertTopic.arn;
 
+// WAF Outputs (if enabled)
+export const wafWebAclArn = wafOutputs.webAcl?.arn;
+export const wafEnabled = config.enableWaf;
+
+// Backup Outputs
+export const backupVaultName = backupOutputs.backupVault.name;
+export const backupVaultArn = backupOutputs.backupVault.arn;
+export const backupPlanArn = backupOutputs.backupPlan.arn;
+
 // Connection URLs (for application config)
-export const apiUrl = pulumi.interpolate`https://${config.domainName || albOutputs.alb.dnsName}/api`;
-export const socketUrl = pulumi.interpolate`https://${config.domainName || albOutputs.alb.dnsName}`;
+// Web (Vercel) and Mobile (Expo) connect to api.domain.com
+export const apiUrl = pulumi.interpolate`https://api.${config.domainName}/api`;
+export const socketUrl = pulumi.interpolate`https://api.${config.domainName}`;
+// Fallback to ALB DNS if no domain configured
+export const apiUrlDirect = pulumi.interpolate`https://${albOutputs.alb.dnsName}/api`;
+export const socketUrlDirect = pulumi.interpolate`https://${albOutputs.alb.dnsName}`;
 
 // DNS Outputs (if enabled)
 export const domainName = config.domainName;

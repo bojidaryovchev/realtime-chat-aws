@@ -1,6 +1,17 @@
 name: realtime-chat-aws
-description: Production-ready realtime chat infrastructure on AWS
+description: Production-ready realtime chat infrastructure on AWS (1k-100k DAU)
 runtime:
   name: nodejs
   options:
     typescript: true
+
+# Available stacks:
+#   dev     - Development (~$50-80/mo, no NAT gateway)
+#   1k-dau  - 1,000 DAU (~$120-180/mo)
+#   5k-dau  - 5,000 DAU (~$250-350/mo)
+#   10k-dau - 10,000 DAU (~$400-550/mo)
+#   25k-dau - 25,000 DAU (~$600-800/mo)
+#   50k-dau - 50,000 DAU (~$900-1,200/mo)
+#   100k-dau - 100,000 DAU (~$1,400-1,800/mo)
+#
+# Usage: pulumi stack select <stack-name>

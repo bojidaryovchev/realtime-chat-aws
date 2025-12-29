@@ -1,4 +1,5 @@
 import * as aws from "@pulumi/aws";
+import * as pulumi from "@pulumi/pulumi";
 import { Config, getTags } from "../../config";
 import { AcmOutputs } from "../acm";
 import { SecurityGroupOutputs } from "../security-groups";
@@ -10,6 +11,7 @@ export interface AlbOutputs {
   httpListener: aws.lb.Listener;
   apiTargetGroup: aws.lb.TargetGroup;
   realtimeTargetGroup: aws.lb.TargetGroup;
+  albLogsBucketName: pulumi.Output<string>;
 }
 
 /**
@@ -29,6 +31,95 @@ export function createAlb(
 ): AlbOutputs {
   const tags = getTags(config);
   const baseName = `${config.projectName}-${config.environment}`;
+  const currentRegion = aws.getRegionOutput();
+  const currentAccount = aws.getCallerIdentityOutput();
+
+  // ==================== ALB Access Logs S3 Bucket ====================
+  // Store ALB access logs for security analysis and debugging
+  
+  const albLogsBucket = new aws.s3.BucketV2(`${baseName}-alb-logs`, {
+    bucket: `${baseName}-alb-logs`,
+    forceDestroy: config.environment !== "prod", // Allow deletion in dev
+    tags: {
+      ...tags,
+      Name: `${baseName}-alb-logs`,
+    },
+  });
+
+  // Enable server-side encryption
+  new aws.s3.BucketServerSideEncryptionConfigurationV2(`${baseName}-alb-logs-encryption`, {
+    bucket: albLogsBucket.id,
+    rules: [{
+      applyServerSideEncryptionByDefault: {
+        sseAlgorithm: "AES256",
+      },
+    }],
+  });
+
+  // Block public access
+  new aws.s3.BucketPublicAccessBlock(`${baseName}-alb-logs-public-access`, {
+    bucket: albLogsBucket.id,
+    blockPublicAcls: true,
+    blockPublicPolicy: true,
+    ignorePublicAcls: true,
+    restrictPublicBuckets: true,
+  });
+
+  // Lifecycle policy to expire old logs
+  new aws.s3.BucketLifecycleConfigurationV2(`${baseName}-alb-logs-lifecycle`, {
+    bucket: albLogsBucket.id,
+    rules: [{
+      id: "expire-old-logs",
+      status: "Enabled",
+      expiration: {
+        days: config.environment === "prod" ? 90 : 30,
+      },
+    }],
+  });
+
+  // Bucket policy to allow ALB to write logs
+  // ALB log delivery uses regional AWS account IDs
+  // https://docs.aws.amazon.com/elasticloadbalancing/latest/application/enable-access-logging.html
+  const albLogsBucketPolicy = new aws.s3.BucketPolicy(`${baseName}-alb-logs-policy`, {
+    bucket: albLogsBucket.id,
+    policy: pulumi.all([albLogsBucket.arn, currentAccount.accountId, currentRegion.name]).apply(
+      ([bucketArn, accountId, region]: [string, string, string]) => {
+        // ELB account IDs by region for log delivery
+        const elbAccountIds: Record<string, string> = {
+          "us-east-1": "127311923021",
+          "us-east-2": "033677994240",
+          "us-west-1": "027434742980",
+          "us-west-2": "797873946194",
+          "eu-west-1": "156460612806",
+          "eu-west-2": "652711504416",
+          "eu-west-3": "009996457667",
+          "eu-central-1": "054676820928",
+          "ap-northeast-1": "582318560864",
+          "ap-northeast-2": "600734575887",
+          "ap-southeast-1": "114774131450",
+          "ap-southeast-2": "783225319266",
+          "ap-south-1": "718504428378",
+          "sa-east-1": "507241528517",
+          "ca-central-1": "985666609251",
+        };
+        const elbAccountId = elbAccountIds[region] || "127311923021"; // Default to us-east-1
+
+        return JSON.stringify({
+          Version: "2012-10-17",
+          Statement: [
+            {
+              Effect: "Allow",
+              Principal: {
+                AWS: `arn:aws:iam::${elbAccountId}:root`,
+              },
+              Action: "s3:PutObject",
+              Resource: `${bucketArn}/AWSLogs/${accountId}/*`,
+            },
+          ],
+        });
+      }
+    ),
+  });
 
   // Create Application Load Balancer
   const alb = new aws.lb.LoadBalancer(`${baseName}-alb`, {
@@ -41,11 +132,16 @@ export function createAlb(
     // Increased idle timeout for WebSocket connections (300 seconds = 5 minutes)
     idleTimeout: 300,
     enableHttp2: true,
+    // Access logs for security and debugging
+    accessLogs: {
+      bucket: albLogsBucket.id,
+      enabled: true,
+    },
     tags: {
       ...tags,
       Name: `${baseName}-alb`,
     },
-  });
+  }, { dependsOn: [albLogsBucketPolicy] });
 
   // API Target Group
   const apiTargetGroup = new aws.lb.TargetGroup(`${baseName}-api-tg`, {
@@ -65,7 +161,8 @@ export function createAlb(
       interval: 30,
       matcher: "200",
     },
-    deregistrationDelay: 30,
+    // API can drain quickly - stateless HTTP requests
+    deregistrationDelay: config.apiDeregistrationDelaySeconds,
     tags: {
       ...tags,
       Name: `${baseName}-api-tg`,
@@ -94,9 +191,12 @@ export function createAlb(
     stickiness: {
       enabled: true,
       type: "lb_cookie",
-      cookieDuration: 86400, // 24 hours
+      // Shorter stickiness for faster load balancing during scale-out
+      // WebSocket connections persist independent of cookie
+      cookieDuration: config.realtimeStickyDurationSeconds,
     },
-    deregistrationDelay: 30,
+    // Longer draining for WebSocket connections to migrate gracefully
+    deregistrationDelay: config.realtimeDeregistrationDelaySeconds,
     tags: {
       ...tags,
       Name: `${baseName}-realtime-tg`,
@@ -230,5 +330,6 @@ export function createAlb(
     httpListener,
     apiTargetGroup,
     realtimeTargetGroup,
+    albLogsBucketName: albLogsBucket.bucket,
   };
 }

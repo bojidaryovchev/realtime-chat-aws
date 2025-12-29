@@ -83,6 +83,28 @@ export function createSqsQueues(config: Config): SqsOutputs {
     },
   });
 
+  // ==================== Redrive Allow Policies ====================
+  // Configure which source queues can use these DLQs.
+  // This policy allows the main queue to send failed messages to the DLQ.
+  // To redrive messages FROM the DLQ BACK to the source queue, use AWS Console or CLI:
+  //   aws sqs start-message-move-task --source-arn <dlq-arn> --destination-arn <queue-arn>
+
+  new aws.sqs.RedriveAllowPolicy(`${baseName}-push-dlq-redrive-allow`, {
+    queueUrl: pushNotificationDlq.url,
+    redriveAllowPolicy: pulumi.interpolate`{
+      "redrivePermission": "byQueue",
+      "sourceQueueArns": ["${pushNotificationQueue.arn}"]
+    }`,
+  });
+
+  new aws.sqs.RedriveAllowPolicy(`${baseName}-offline-dlq-redrive-allow`, {
+    queueUrl: offlineMessageDlq.url,
+    redriveAllowPolicy: pulumi.interpolate`{
+      "redrivePermission": "byQueue",
+      "sourceQueueArns": ["${offlineMessageQueue.arn}"]
+    }`,
+  });
+
   return {
     pushNotificationQueue,
     pushNotificationDlq,

@@ -72,6 +72,17 @@ export function createEcsServices(
 
   // ==================== API Service ====================
 
+  // Runtime platform configuration (Graviton/ARM64 support)
+  const runtimePlatform = config.enableGraviton
+    ? {
+        cpuArchitecture: "ARM64" as const,
+        operatingSystemFamily: "LINUX" as const,
+      }
+    : {
+        cpuArchitecture: "X86_64" as const,
+        operatingSystemFamily: "LINUX" as const,
+      };
+
   // API Task Definition
   const apiTaskDefinition = new aws.ecs.TaskDefinition(
     `${baseName}-api-task`,
@@ -83,11 +94,13 @@ export function createEcsServices(
       memory: config.apiServiceMemory.toString(),
       executionRoleArn: iamOutputs.ecsTaskExecutionRole.arn,
       taskRoleArn: iamOutputs.ecsApiTaskRole.arn,
+      runtimePlatform: runtimePlatform,
       containerDefinitions: pulumi
         .all([
-          rdsOutputs.dbInstance.endpoint,
+          rdsOutputs.dbConnectionEndpoint,
           rdsOutputs.dbCredentialsSecret.arn,
-          redisOutputs.redisCluster.primaryEndpointAddress,
+          redisOutputs.stateEndpoint, // API uses state cluster for sessions/cache
+          redisOutputs.redisAuthSecret.arn,
           sqsOutputs.pushNotificationQueue.url,
           sqsOutputs.offlineMessageQueue.url,
           currentRegion.name,
@@ -98,6 +111,7 @@ export function createEcsServices(
             dbEndpoint,
             dbSecretArn,
             redisEndpoint,
+            redisAuthSecretArn,
             pushQueueUrl,
             offlineQueueUrl,
             region,
@@ -132,6 +146,9 @@ export function createEcsServices(
                   { name: "LOG_LEVEL", value: config.environment === "prod" ? "info" : "debug" },
                   { name: "AUTH0_DOMAIN", value: config.auth0Domain },
                   { name: "AUTH0_AUDIENCE", value: config.auth0Audience },
+                  // CORS: Vercel web frontend URL (set in stack config or use domain)
+                  { name: "WEB_URL", value: `https://${config.domainName}` },
+                  { name: "API_URL", value: `https://api.${config.domainName}` },
                 ],
                 secrets: [
                   {
@@ -141,6 +158,10 @@ export function createEcsServices(
                   {
                     name: "DATABASE_PASSWORD",
                     valueFrom: `${dbSecretArn}:password::`,
+                  },
+                  {
+                    name: "REDIS_PASSWORD",
+                    valueFrom: redisAuthSecretArn,
                   },
                 ],
                 logConfiguration: {
@@ -158,6 +179,8 @@ export function createEcsServices(
                   retries: 3,
                   startPeriod: 60,
                 },
+                // Grace period for SIGTERM handling
+                stopTimeout: config.apiStopTimeoutSeconds,
               },
             ])
         ),
@@ -178,9 +201,13 @@ export function createEcsServices(
     platformVersion: "LATEST",
 
     networkConfiguration: {
-      subnets: vpcOutputs.privateSubnets.map((s) => s.id),
+      // Dev: public subnets with public IP (no NAT needed)
+      // Prod: private subnets with NAT Gateway
+      subnets: config.environment === "dev"
+        ? vpcOutputs.publicSubnets.map((s) => s.id)
+        : vpcOutputs.privateSubnets.map((s) => s.id),
       securityGroups: [securityGroupOutputs.ecsApiSecurityGroup.id],
-      assignPublicIp: false,
+      assignPublicIp: config.environment === "dev",
     },
 
     loadBalancers: [
@@ -198,7 +225,10 @@ export function createEcsServices(
       rollback: true,
     },
 
-    // Enable service discovery for internal communication
+    // Grace period before health checks start (allows container startup)
+    healthCheckGracePeriodSeconds: config.healthCheckGracePeriodSeconds,
+
+    // Enable ECS Exec for debugging
     enableExecuteCommand: true,
 
     propagateTags: "SERVICE",
@@ -222,11 +252,14 @@ export function createEcsServices(
       memory: config.realtimeServiceMemory.toString(),
       executionRoleArn: iamOutputs.ecsTaskExecutionRole.arn,
       taskRoleArn: iamOutputs.ecsRealtimeTaskRole.arn,
+      runtimePlatform: runtimePlatform,
       containerDefinitions: pulumi
         .all([
-          rdsOutputs.dbInstance.endpoint,
+          rdsOutputs.dbConnectionEndpoint,
           rdsOutputs.dbCredentialsSecret.arn,
-          redisOutputs.redisCluster.primaryEndpointAddress,
+          redisOutputs.adapterEndpoint, // Socket.IO adapter pub/sub
+          redisOutputs.stateEndpoint,   // Presence, sessions, rate limits
+          redisOutputs.redisAuthSecret.arn,
           sqsOutputs.pushNotificationQueue.url,
           sqsOutputs.offlineMessageQueue.url,
           currentRegion.name,
@@ -236,7 +269,9 @@ export function createEcsServices(
           ([
             dbEndpoint,
             dbSecretArn,
-            redisEndpoint,
+            redisAdapterEndpoint,
+            redisStateEndpoint,
+            redisAuthSecretArn,
             pushQueueUrl,
             offlineQueueUrl,
             region,
@@ -262,7 +297,12 @@ export function createEcsServices(
                   { name: "DATABASE_HOST", value: dbEndpoint.split(":")[0] },
                   { name: "DATABASE_PORT", value: "5432" },
                   { name: "DATABASE_NAME", value: "chatdb" },
-                  { name: "REDIS_HOST", value: redisEndpoint },
+                  // Redis split mode: separate clusters for adapter and state
+                  // In single mode, both will be the same endpoint
+                  { name: "REDIS_ADAPTER_HOST", value: redisAdapterEndpoint },
+                  { name: "REDIS_STATE_HOST", value: redisStateEndpoint },
+                  // Legacy single-host compat (points to adapter for pub/sub)
+                  { name: "REDIS_HOST", value: redisAdapterEndpoint },
                   { name: "REDIS_PORT", value: "6379" },
                   { name: "REDIS_TLS", value: "true" },
                   { name: "SQS_PUSH_QUEUE_URL", value: pushQueueUrl },
@@ -271,10 +311,19 @@ export function createEcsServices(
                   { name: "LOG_LEVEL", value: config.environment === "prod" ? "info" : "debug" },
                   { name: "AUTH0_DOMAIN", value: config.auth0Domain },
                   { name: "AUTH0_AUDIENCE", value: config.auth0Audience },
+                  // CORS: Vercel web frontend URL
+                  { name: "WEB_URL", value: `https://${config.domainName}` },
+                  { name: "API_URL", value: `https://api.${config.domainName}` },
                   // Socket.IO specific
                   { name: "SOCKET_IO_ADAPTER", value: "redis" },
                   { name: "SOCKET_IO_PING_TIMEOUT", value: "30000" },
                   { name: "SOCKET_IO_PING_INTERVAL", value: "25000" },
+                  // Custom metrics configuration
+                  { name: "METRICS_ENABLED", value: config.realtimeScaleOnConnections ? "true" : "false" },
+                  { name: "METRICS_NAMESPACE", value: baseName },
+                  { name: "METRICS_SERVICE_NAME", value: `${baseName}-realtime` },
+                  { name: "METRICS_INTERVAL_MS", value: "60000" }, // Publish every 60 seconds
+                  { name: "MAX_CONNECTIONS_PER_TASK", value: String(config.realtimeMaxConnectionsPerTask) },
                 ],
                 secrets: [
                   {
@@ -284,6 +333,10 @@ export function createEcsServices(
                   {
                     name: "DATABASE_PASSWORD",
                     valueFrom: `${dbSecretArn}:password::`,
+                  },
+                  {
+                    name: "REDIS_PASSWORD",
+                    valueFrom: redisAuthSecretArn,
                   },
                 ],
                 logConfiguration: {
@@ -301,6 +354,9 @@ export function createEcsServices(
                   retries: 3,
                   startPeriod: 60,
                 },
+                // Longer grace period for WebSocket connection draining
+                // App should listen for SIGTERM and stop accepting new connections
+                stopTimeout: config.realtimeStopTimeoutSeconds,
               },
             ])
         ),
@@ -323,9 +379,13 @@ export function createEcsServices(
       platformVersion: "LATEST",
 
       networkConfiguration: {
-        subnets: vpcOutputs.privateSubnets.map((s) => s.id),
+        // Dev: public subnets with public IP (no NAT needed)
+        // Prod: private subnets with NAT Gateway
+        subnets: config.environment === "dev"
+          ? vpcOutputs.publicSubnets.map((s) => s.id)
+          : vpcOutputs.privateSubnets.map((s) => s.id),
         securityGroups: [securityGroupOutputs.ecsRealtimeSecurityGroup.id],
-        assignPublicIp: false,
+        assignPublicIp: config.environment === "dev",
       },
 
       loadBalancers: [
@@ -336,12 +396,18 @@ export function createEcsServices(
         },
       ],
 
-      deploymentMaximumPercent: 200,
-      deploymentMinimumHealthyPercent: 100,
+      // Graceful deployment for WebSocket services:
+      // - minHealthy at 50% allows faster deployments while maintaining availability
+      // - maxPercent at 150% reduces resource overhead during rolling updates
+      deploymentMaximumPercent: config.realtimeMaxPercent,
+      deploymentMinimumHealthyPercent: config.realtimeMinHealthyPercent,
       deploymentCircuitBreaker: {
         enable: true,
         rollback: true,
       },
+
+      // Longer grace period for realtime - WebSocket connections take time to migrate
+      healthCheckGracePeriodSeconds: config.healthCheckGracePeriodSeconds * 2,
 
       enableExecuteCommand: true,
 
@@ -385,6 +451,23 @@ export function createEcsServices(
         predefinedMetricType: "ECSServiceAverageCPUUtilization",
       },
       targetValue: 70,
+      scaleInCooldown: 300,
+      scaleOutCooldown: 60,
+    },
+  });
+
+  // API Memory Scaling Policy
+  new aws.appautoscaling.Policy(`${baseName}-api-memory-scaling`, {
+    name: `${baseName}-api-memory-scaling`,
+    policyType: "TargetTrackingScaling",
+    resourceId: apiAutoScaling.resourceId,
+    scalableDimension: apiAutoScaling.scalableDimension,
+    serviceNamespace: apiAutoScaling.serviceNamespace,
+    targetTrackingScalingPolicyConfiguration: {
+      predefinedMetricSpecification: {
+        predefinedMetricType: "ECSServiceAverageMemoryUtilization",
+      },
+      targetValue: 75,
       scaleInCooldown: 300,
       scaleOutCooldown: 60,
     },
@@ -457,6 +540,90 @@ export function createEcsServices(
       scaleOutCooldown: 60,
     },
   });
+
+  // ==================== Custom Metrics Scaling (Connections + Event Loop Lag) ====================
+  // These custom metrics must be published by the realtime application using CloudWatch PutMetricData
+
+  if (config.realtimeScaleOnConnections) {
+    // Scale on ActiveConnections custom metric
+    // Application must publish: ActiveConnections metric to namespace: ${baseName}
+    new aws.appautoscaling.Policy(`${baseName}-realtime-connections-scaling`, {
+      name: `${baseName}-realtime-connections-scaling`,
+      policyType: "TargetTrackingScaling",
+      resourceId: realtimeAutoScaling.resourceId,
+      scalableDimension: realtimeAutoScaling.scalableDimension,
+      serviceNamespace: realtimeAutoScaling.serviceNamespace,
+      targetTrackingScalingPolicyConfiguration: {
+        customizedMetricSpecification: {
+          metricName: "ActiveConnections",
+          namespace: baseName,
+          statistic: "Average",
+          // Dimension to identify per-service metrics
+          dimensions: [
+            {
+              name: "ServiceName",
+              value: `${baseName}-realtime`,
+            },
+          ],
+        },
+        targetValue: config.realtimeMaxConnectionsPerTask,
+        scaleInCooldown: 300,
+        scaleOutCooldown: 60,
+      },
+    });
+
+    // Step scaling on Event Loop Lag for fast scale-out during degradation
+    const eventLoopLagScaleOutPolicy = new aws.appautoscaling.Policy(
+      `${baseName}-realtime-eventloop-scaling`,
+      {
+        name: `${baseName}-realtime-eventloop-scaling`,
+        policyType: "StepScaling",
+        resourceId: realtimeAutoScaling.resourceId,
+        scalableDimension: realtimeAutoScaling.scalableDimension,
+        serviceNamespace: realtimeAutoScaling.serviceNamespace,
+        stepScalingPolicyConfiguration: {
+          adjustmentType: "ChangeInCapacity",
+          cooldown: 60,
+          metricAggregationType: "Average",
+          stepAdjustments: [
+            {
+              // threshold to 2x threshold: add 1 task
+              metricIntervalLowerBound: "0",
+              metricIntervalUpperBound: String(config.realtimeScaleOnEventLoopLagMs),
+              scalingAdjustment: 1,
+            },
+            {
+              // > 2x threshold: add 2 tasks (aggressive scale-out)
+              metricIntervalLowerBound: String(config.realtimeScaleOnEventLoopLagMs),
+              scalingAdjustment: 2,
+            },
+          ],
+        },
+      }
+    );
+
+    // CloudWatch alarm to trigger event loop lag scaling
+    // Application must publish: EventLoopLagMs metric to namespace: ${baseName}
+    new aws.cloudwatch.MetricAlarm(`${baseName}-realtime-eventloop-alarm`, {
+      name: `${baseName}-realtime-eventloop-alarm`,
+      comparisonOperator: "GreaterThanThreshold",
+      evaluationPeriods: 3, // 3 minutes of high lag before scaling
+      metricName: "EventLoopLagMs",
+      namespace: baseName,
+      period: 60,
+      statistic: "p95", // Use p95 to avoid outliers triggering scale
+      threshold: config.realtimeScaleOnEventLoopLagMs,
+      alarmDescription: "Realtime service event loop lag is high - triggering scale out",
+      dimensions: {
+        ServiceName: `${baseName}-realtime`,
+      },
+      alarmActions: [eventLoopLagScaleOutPolicy.arn],
+      tags: {
+        ...tags,
+        Name: `${baseName}-realtime-eventloop-alarm`,
+      },
+    });
+  }
 
   return {
     apiService,

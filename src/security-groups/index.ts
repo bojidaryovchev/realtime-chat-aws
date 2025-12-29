@@ -6,6 +6,7 @@ export interface SecurityGroupOutputs {
   albSecurityGroup: aws.ec2.SecurityGroup;
   ecsApiSecurityGroup: aws.ec2.SecurityGroup;
   ecsRealtimeSecurityGroup: aws.ec2.SecurityGroup;
+  ecsWorkersSecurityGroup: aws.ec2.SecurityGroup;
   rdsSecurityGroup: aws.ec2.SecurityGroup;
   redisSecurityGroup: aws.ec2.SecurityGroup;
 }
@@ -15,8 +16,18 @@ export interface SecurityGroupOutputs {
  * - ALB: Accepts HTTPS from internet
  * - ECS API: Accepts traffic from ALB only
  * - ECS Realtime: Accepts traffic from ALB only (WebSocket)
+ * - ECS Workers: No inbound traffic (SQS consumers)
  * - RDS: Accepts traffic from ECS only
  * - Redis: Accepts traffic from ECS only
+ * 
+ * Security Model Notes:
+ * - ECS egress is 0.0.0.0/0 intentionally to allow:
+ *   - External API access (Auth0, webhooks, push notification services)
+ *   - AWS service access (ECR, Secrets Manager, Logs, SQS)
+ *   - DNS resolution
+ * - Dev: ECS runs in public subnets with public IPs
+ * - Prod: ECS runs in private subnets, egress via NAT Gateway
+ * - RDS/Redis have no internet access (egress only to AWS services)
  */
 export function createSecurityGroups(
   config: Config,
@@ -77,7 +88,9 @@ export function createSecurityGroups(
     ],
     egress: [
       {
-        description: "Allow all outbound",
+        // Intentionally 0.0.0.0/0 to allow external API calls (Auth0, webhooks)
+        // and AWS service access. Dev uses public subnets, prod uses NAT.
+        description: "Allow outbound for AWS services and external APIs",
         fromPort: 0,
         toPort: 0,
         protocol: "-1",
@@ -108,7 +121,8 @@ export function createSecurityGroups(
       ],
       egress: [
         {
-          description: "Allow all outbound",
+          // Intentionally 0.0.0.0/0 for WebSocket connections and Redis pub/sub
+          description: "Allow outbound for AWS services and external APIs",
           fromPort: 0,
           toPort: 0,
           protocol: "-1",
@@ -118,6 +132,32 @@ export function createSecurityGroups(
       tags: {
         ...tags,
         Name: `${baseName}-ecs-realtime-sg`,
+      },
+    }
+  );
+
+  // ECS Workers Security Group - No inbound traffic (SQS consumers only need outbound)
+  const ecsWorkersSecurityGroup = new aws.ec2.SecurityGroup(
+    `${baseName}-ecs-workers-sg`,
+    {
+      name: `${baseName}-ecs-workers-sg`,
+      description: "Security group for ECS Workers service (SQS consumers)",
+      vpcId: vpcOutputs.vpc.id,
+      // No ingress - workers don't receive inbound traffic
+      ingress: [],
+      egress: [
+        {
+          // Intentionally 0.0.0.0/0 for SQS polling, push notifications, external APIs
+          description: "Allow outbound for SQS, RDS, Redis, push services",
+          fromPort: 0,
+          toPort: 0,
+          protocol: "-1",
+          cidrBlocks: ["0.0.0.0/0"],
+        },
+      ],
+      tags: {
+        ...tags,
+        Name: `${baseName}-ecs-workers-sg`,
       },
     }
   );
@@ -142,6 +182,13 @@ export function createSecurityGroups(
         protocol: "tcp",
         securityGroups: [ecsRealtimeSecurityGroup.id],
       },
+      {
+        description: "PostgreSQL from ECS Workers",
+        fromPort: 5432,
+        toPort: 5432,
+        protocol: "tcp",
+        securityGroups: [ecsWorkersSecurityGroup.id],
+      },
     ],
     egress: [
       {
@@ -158,7 +205,7 @@ export function createSecurityGroups(
     },
   });
 
-  // Redis Security Group - Accepts traffic from ECS Realtime only
+  // Redis Security Group - Accepts traffic from ECS services
   const redisSecurityGroup = new aws.ec2.SecurityGroup(`${baseName}-redis-sg`, {
     name: `${baseName}-redis-sg`,
     description: "Security group for ElastiCache Redis",
@@ -177,6 +224,13 @@ export function createSecurityGroups(
         toPort: 6379,
         protocol: "tcp",
         securityGroups: [ecsApiSecurityGroup.id],
+      },
+      {
+        description: "Redis from ECS Workers (for rate limiting/caching)",
+        fromPort: 6379,
+        toPort: 6379,
+        protocol: "tcp",
+        securityGroups: [ecsWorkersSecurityGroup.id],
       },
     ],
     egress: [
@@ -198,6 +252,7 @@ export function createSecurityGroups(
     albSecurityGroup,
     ecsApiSecurityGroup,
     ecsRealtimeSecurityGroup,
+    ecsWorkersSecurityGroup,
     rdsSecurityGroup,
     redisSecurityGroup,
   };

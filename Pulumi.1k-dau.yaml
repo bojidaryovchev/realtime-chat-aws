@@ -1,9 +1,9 @@
 # ============================================================
-# Development Stack - Minimal (~$50-80/month)
+# 1k DAU Production Stack (~$150-200/month)
 # ============================================================
-# Uses public subnets with public IPs - no NAT Gateway needed
-# Suitable for: Local development, testing, CI/CD
-# Capacity: ~50-100 concurrent connections
+# Entry-level production for startups and early-stage apps
+# Suitable for: MVP launch, beta testing with real users
+# Capacity: ~100-300 concurrent connections, ~1,000 DAU
 # ============================================================
 
 encryptionsalt: v1:CHANGE_ME_ON_FIRST_RUN:v1
@@ -11,7 +11,7 @@ config:
   aws:region: eu-central-1
   
   # ==================== General ====================
-  realtime-chat-aws:environment: dev
+  realtime-chat-aws:environment: prod
   realtime-chat-aws:domainName: "your-domain.com"
   realtime-chat-aws:hostedZoneId: "YOUR_HOSTED_ZONE_ID"
   
@@ -21,7 +21,7 @@ config:
   
   # ==================== VPC ====================
   realtime-chat-aws:availabilityZones: '["eu-central-1a", "eu-central-1b"]'
-  realtime-chat-aws:natGateways: "0"  # No NAT needed - dev uses public subnets
+  realtime-chat-aws:natGateways: "1"  # Single NAT for cost efficiency
   
   # ==================== ECS - API Service ====================
   realtime-chat-aws:apiServiceDesiredCount: "1"
@@ -32,8 +32,8 @@ config:
   
   # ==================== ECS - Realtime Service ====================
   realtime-chat-aws:realtimeServiceDesiredCount: "1"
-  realtime-chat-aws:realtimeServiceCpu: "256"
-  realtime-chat-aws:realtimeServiceMemory: "512"
+  realtime-chat-aws:realtimeServiceCpu: "512"
+  realtime-chat-aws:realtimeServiceMemory: "1024"
   realtime-chat-aws:realtimeMaxConnectionsPerTask: "3000"
   realtime-chat-aws:realtimeScaleOnEventLoopLagMs: "100"
   realtime-chat-aws:realtimeScaleOnConnections: "false"
@@ -51,25 +51,25 @@ config:
   realtime-chat-aws:workerScaleOnOldestMessageAge: "300"
   
   # ==================== ECS - Architecture ====================
-  realtime-chat-aws:enableGraviton: "false"  # x86_64 for dev compatibility
+  realtime-chat-aws:enableGraviton: "false"
   
   # ==================== RDS ====================
-  realtime-chat-aws:rdsInstanceClass: "db.t3.micro"
+  realtime-chat-aws:rdsInstanceClass: "db.t3.small"
   realtime-chat-aws:rdsAllocatedStorage: "20"
   realtime-chat-aws:rdsMultiAz: "false"
   realtime-chat-aws:enableRdsProxy: "false"
   realtime-chat-aws:rdsProxyMaxConnectionsPercent: "80"
   realtime-chat-aws:rdsProxyIdleClientTimeout: "1800"
   realtime-chat-aws:enableRdsReadReplica: "false"
-  realtime-chat-aws:rdsReadReplicaInstanceClass: "db.t3.micro"  # Not used but required
+  realtime-chat-aws:rdsReadReplicaInstanceClass: "db.t3.small"
   
   # ==================== Redis ====================
-  realtime-chat-aws:redisNodeType: "cache.t3.micro"
+  realtime-chat-aws:redisNodeType: "cache.t3.small"
   realtime-chat-aws:redisNumCacheNodes: "1"
   realtime-chat-aws:enableRedisSplit: "false"
-  realtime-chat-aws:redisAdapterNodeType: "cache.t3.micro"
+  realtime-chat-aws:redisAdapterNodeType: "cache.t3.small"
   realtime-chat-aws:redisAdapterReplicas: "0"
-  realtime-chat-aws:redisStateNodeType: "cache.t3.micro"
+  realtime-chat-aws:redisStateNodeType: "cache.t3.small"
   realtime-chat-aws:redisStateReplicas: "0"
   
   # ==================== WAF ====================
