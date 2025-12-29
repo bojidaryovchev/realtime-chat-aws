@@ -60,15 +60,22 @@ async function main() {
 
   // Setup Redis adapter for horizontal scaling
   if (process.env.SOCKET_IO_ADAPTER === "redis") {
+    // Use REDIS_ADAPTER_HOST for split Redis mode, otherwise fall back to REDIS_HOST
+    const adapterHost = process.env.REDIS_ADAPTER_HOST || process.env.REDIS_HOST;
+    const redisPort = process.env.REDIS_PORT || "6379";
+    const redisPassword = process.env.REDIS_PASSWORD;
+    const useTls = process.env.REDIS_TLS === "true";
+
     const pubClient = createClient({
-      url: `redis${process.env.REDIS_TLS === "true" ? "s" : ""}://${process.env.REDIS_HOST}:${process.env.REDIS_PORT}`,
+      url: `redis${useTls ? "s" : ""}://${adapterHost}:${redisPort}`,
+      password: redisPassword || undefined,
     });
     const subClient = pubClient.duplicate();
 
     await Promise.all([pubClient.connect(), subClient.connect()]);
 
     io.adapter(createAdapter(pubClient, subClient));
-    fastify.log.info("Socket.IO Redis adapter initialized");
+    fastify.log.info(`Socket.IO Redis adapter initialized (host: ${adapterHost})`);
   }
 
   // Setup socket handlers

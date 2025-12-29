@@ -153,7 +153,18 @@ export async function messageRoutes(fastify: FastifyInstance) {
   // Mark messages as read
   fastify.post<{ Params: { id: string } }>("/:id/read", async (request, reply) => {
     const { id } = request.params;
-    const { userId } = z.object({ userId: z.string().uuid() }).parse(request.body);
+
+    // Get the authenticated user's ID (prevent impersonation)
+    const currentUser = await fastify.prisma.user.findFirst({
+      where: { auth0Id: request.user!.sub },
+      select: { id: true },
+    });
+
+    if (!currentUser) {
+      throw fastify.httpErrors.notFound("User not found");
+    }
+
+    const userId = currentUser.id;
 
     await fastify.prisma.messageReceipt.upsert({
       where: {
@@ -188,7 +199,18 @@ export async function messageRoutes(fastify: FastifyInstance) {
   // Mark messages as delivered
   fastify.post<{ Params: { id: string } }>("/:id/delivered", async (request, reply) => {
     const { id } = request.params;
-    const { userId } = z.object({ userId: z.string().uuid() }).parse(request.body);
+
+    // Get the authenticated user's ID (prevent impersonation)
+    const currentUser = await fastify.prisma.user.findFirst({
+      where: { auth0Id: request.user!.sub },
+      select: { id: true },
+    });
+
+    if (!currentUser) {
+      throw fastify.httpErrors.notFound("User not found");
+    }
+
+    const userId = currentUser.id;
 
     await fastify.prisma.messageReceipt.upsert({
       where: {

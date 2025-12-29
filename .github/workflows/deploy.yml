@@ -81,9 +81,8 @@ jobs:
       - name: Type check
         run: pnpm exec tsc --noEmit
 
-      # Add your test command here
-      # - name: Test
-      #   run: pnpm test
+      - name: Test
+        run: pnpm test
 
   # ==================== Build Docker Images ====================
   build-images:

@@ -144,10 +144,39 @@ export async function conversationRoutes(fastify: FastifyInstance) {
     return { conversations };
   });
 
-  // Add participant to conversation
+  // Add participant to conversation (only admins can add)
   fastify.post<{ Params: { id: string } }>("/:id/participants", async (request, reply) => {
     const { id } = request.params;
     const { userId } = z.object({ userId: z.string().uuid() }).parse(request.body);
+
+    // Get the authenticated user's ID
+    const currentUser = await fastify.prisma.user.findFirst({
+      where: { auth0Id: request.user!.sub },
+      select: { id: true },
+    });
+
+    if (!currentUser) {
+      throw fastify.httpErrors.notFound("User not found");
+    }
+
+    // Check if current user is a participant with ADMIN role
+    const currentParticipant = await fastify.prisma.conversationParticipant.findUnique({
+      where: {
+        conversationId_userId: {
+          conversationId: id,
+          userId: currentUser.id,
+        },
+      },
+      select: { role: true },
+    });
+
+    if (!currentParticipant) {
+      throw fastify.httpErrors.forbidden("You are not a participant in this conversation");
+    }
+
+    if (currentParticipant.role !== "ADMIN") {
+      throw fastify.httpErrors.forbidden("Only admins can add participants");
+    }
 
     await fastify.prisma.conversationParticipant.upsert({
       where: {
@@ -166,11 +195,44 @@ export async function conversationRoutes(fastify: FastifyInstance) {
     reply.code(204);
   });
 
-  // Remove participant from conversation
+  // Remove participant from conversation (admins can remove anyone, users can leave themselves)
   fastify.delete<{ Params: { id: string; userId: string } }>(
     "/:id/participants/:userId",
     async (request, reply) => {
       const { id, userId } = request.params;
+
+      // Get the authenticated user's ID
+      const currentUser = await fastify.prisma.user.findFirst({
+        where: { auth0Id: request.user!.sub },
+        select: { id: true },
+      });
+
+      if (!currentUser) {
+        throw fastify.httpErrors.notFound("User not found");
+      }
+
+      // Check if current user is a participant
+      const currentParticipant = await fastify.prisma.conversationParticipant.findUnique({
+        where: {
+          conversationId_userId: {
+            conversationId: id,
+            userId: currentUser.id,
+          },
+        },
+        select: { role: true },
+      });
+
+      if (!currentParticipant) {
+        throw fastify.httpErrors.forbidden("You are not a participant in this conversation");
+      }
+
+      // Allow if: removing self OR current user is admin
+      const isRemovingSelf = currentUser.id === userId;
+      const isAdmin = currentParticipant.role === "ADMIN";
+
+      if (!isRemovingSelf && !isAdmin) {
+        throw fastify.httpErrors.forbidden("Only admins can remove other participants");
+      }
 
       await fastify.prisma.conversationParticipant.delete({
         where: {

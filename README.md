@@ -140,6 +140,32 @@ ls Pulumi.*.yaml
 pulumi stack init 1k-dau  # Or: dev, 5k-dau, 10k-dau, etc.
 ```
 
+### ⚠️ Important: Encryption Salt
+
+Each Pulumi stack YAML file contains an `encryptionsalt` that is used to encrypt secrets in that stack. This value is:
+
+- **Auto-generated** when you run `pulumi stack init`
+- **Required** to decrypt config secrets - never delete or modify it
+- **Stack-specific** - each stack has its own unique salt
+- **NOT a secret itself** - it's safe to commit to source control
+
+```yaml
+# Example: Pulumi.dev.yaml
+encryptionsalt: v1:abc123xyz...  # Don't modify this!
+config:
+  realtime-chat-aws:domainName: "example.com"
+```
+
+If you're using the pre-configured stack files (e.g., copying `Pulumi.10k-dau.yaml`), you should either:
+1. **Create a new stack**: `pulumi stack init my-stack` (generates new salt automatically)
+2. **Or regenerate the salt**: Delete the `encryptionsalt` line and run `pulumi config set` on any value
+
+To set secrets that will be encrypted with this salt:
+```bash
+# Secrets are encrypted with the stack's encryptionsalt
+pulumi config set --secret auth0ClientSecret "your-secret-value"
+```
+
 ### 2. Edit Stack Configuration
 
 Open `Pulumi.<stack>.yaml` and update these required values:

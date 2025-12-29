@@ -41,10 +41,10 @@ export function useChat(options: UseChatOptions) {
   useEffect(() => {
     if (!socket || !isConnected || !conversationId) return;
 
-    socket.emit("join_conversation", { conversationId });
+    socket.emit("conversation:join", { conversationId });
 
     return () => {
-      socket.emit("leave_conversation", { conversationId });
+      socket.emit("conversation:leave", { conversationId });
     };
   }, [socket, isConnected, conversationId]);
 
@@ -52,45 +52,51 @@ export function useChat(options: UseChatOptions) {
   useEffect(() => {
     if (!socket) return;
 
-    const handleNewMessage = (message: Message) => {
-      if (message.conversationId === conversationId) {
-        setMessages((prev) => [...prev, message]);
-        onNewMessage?.(message);
+    const handleNewMessage = (data: { message: Message }) => {
+      if (data.message.conversationId === conversationId) {
+        setMessages((prev) => [...prev, data.message]);
+        onNewMessage?.(data.message);
       }
     };
 
-    const handleTyping = ({ userId, username, isTyping }: { userId: string; username: string; isTyping: boolean }) => {
+    const handleTyping = ({ conversationId: convId, userId, isTyping }: { conversationId: string; userId: string; isTyping: boolean }) => {
+      if (convId !== conversationId) return;
       setTypingUsers((prev) => {
         if (isTyping) {
           if (!prev.find((u) => u.id === userId)) {
-            return [...prev, { id: userId, username }];
+            return [...prev, { id: userId, username: userId }]; // username comes from server
           }
         } else {
           return prev.filter((u) => u.id !== userId);
         }
         return prev;
       });
-      onTyping?.({ id: userId, username }, isTyping);
+      onTyping?.({ id: userId, username: userId }, isTyping);
     };
 
-    const handleUserJoined = ({ userId }: { conversationId: string; userId: string }) => {
-      onUserJoined?.(userId);
+    const handleUserJoined = ({ conversationId: convId, userId }: { conversationId: string; userId: string }) => {
+      if (convId === conversationId) {
+        onUserJoined?.(userId);
+      }
     };
 
-    const handleUserLeft = ({ userId }: { conversationId: string; userId: string }) => {
-      onUserLeft?.(userId);
+    const handleUserLeft = ({ conversationId: convId, userId }: { conversationId: string; userId: string }) => {
+      if (convId === conversationId) {
+        onUserLeft?.(userId);
+      }
     };
 
-    socket.on("new_message", handleNewMessage);
-    socket.on("user_typing", handleTyping);
-    socket.on("user_joined", handleUserJoined);
-    socket.on("user_left", handleUserLeft);
+    // Event names matching server-side handlers.ts
+    socket.on("message:new", handleNewMessage);
+    socket.on("typing:update", handleTyping);
+    socket.on("user:joined", handleUserJoined);
+    socket.on("user:left", handleUserLeft);
 
     return () => {
-      socket.off("new_message", handleNewMessage);
-      socket.off("user_typing", handleTyping);
-      socket.off("user_joined", handleUserJoined);
-      socket.off("user_left", handleUserLeft);
+      socket.off("message:new", handleNewMessage);
+      socket.off("typing:update", handleTyping);
+      socket.off("user:joined", handleUserJoined);
+      socket.off("user:left", handleUserLeft);
     };
   }, [socket, conversationId, onNewMessage, onTyping, onUserJoined, onUserLeft]);
 
@@ -98,7 +104,7 @@ export function useChat(options: UseChatOptions) {
     (content: string, type: "TEXT" | "IMAGE" | "FILE" = "TEXT") => {
       if (!socket || !isConnected) return;
 
-      socket.emit("send_message", {
+      socket.emit("message:send", {
         conversationId,
         content,
         type,
@@ -111,7 +117,7 @@ export function useChat(options: UseChatOptions) {
     (isTyping: boolean) => {
       if (!socket || !isConnected) return;
 
-      socket.emit("typing", {
+      socket.emit(isTyping ? "typing:start" : "typing:stop", {
         conversationId,
         isTyping,
       });
@@ -123,7 +129,7 @@ export function useChat(options: UseChatOptions) {
     (messageId: string) => {
       if (!socket || !isConnected) return;
 
-      socket.emit("read_receipt", {
+      socket.emit("message:read", {
         messageId,
         conversationId,
       });
