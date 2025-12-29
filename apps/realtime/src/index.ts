@@ -1,13 +1,13 @@
-import Fastify from "fastify";
 import cors from "@fastify/cors";
 import helmet from "@fastify/helmet";
-import { Server as SocketIOServer } from "socket.io";
-import { createAdapter } from "@socket.io/redis-adapter";
-import { createClient } from "redis";
 import { prisma } from "@realtime-chat/database";
+import { createAdapter } from "@socket.io/redis-adapter";
+import Fastify from "fastify";
+import { createClient } from "redis";
+import { Server as SocketIOServer } from "socket.io";
+import { loggerOptions } from "./lib/logger.js";
 import { createRedisClient } from "./lib/redis.js";
 import { setupSocketHandlers } from "./socket/handlers.js";
-import { loggerOptions } from "./lib/logger.js";
 
 const PORT = parseInt(process.env.PORT || "3002", 10);
 const HOST = process.env.HOST || "0.0.0.0";
@@ -92,13 +92,13 @@ async function main() {
   signals.forEach((signal) => {
     process.on(signal, async () => {
       fastify.log.info(`Received ${signal}, shutting down...`);
-      
+
       // Clean up socket handlers (Redis pub/sub subscriber)
       await cleanupSocketHandlers();
-      
+
       // Close Socket.IO connections
       io.close();
-      
+
       await fastify.close();
       await prisma.$disconnect();
       await redis.quit();

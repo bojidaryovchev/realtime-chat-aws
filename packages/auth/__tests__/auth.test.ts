@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { getAuth0Config } from "../src/server.js";
 
 describe("Auth0 Configuration", () => {
@@ -30,27 +30,21 @@ describe("Auth0 Configuration", () => {
       delete process.env.AUTH0_DOMAIN;
       process.env.AUTH0_AUDIENCE = "https://api.test.com";
 
-      expect(() => getAuth0Config()).toThrow(
-        "AUTH0_DOMAIN environment variable is not set"
-      );
+      expect(() => getAuth0Config()).toThrow("AUTH0_DOMAIN environment variable is not set");
     });
 
     it("should throw error when AUTH0_AUDIENCE is not set", () => {
       process.env.AUTH0_DOMAIN = "test.auth0.com";
       delete process.env.AUTH0_AUDIENCE;
 
-      expect(() => getAuth0Config()).toThrow(
-        "AUTH0_AUDIENCE environment variable is not set"
-      );
+      expect(() => getAuth0Config()).toThrow("AUTH0_AUDIENCE environment variable is not set");
     });
 
     it("should throw error when both env vars are not set", () => {
       delete process.env.AUTH0_DOMAIN;
       delete process.env.AUTH0_AUDIENCE;
 
-      expect(() => getAuth0Config()).toThrow(
-        "AUTH0_DOMAIN environment variable is not set"
-      );
+      expect(() => getAuth0Config()).toThrow("AUTH0_DOMAIN environment variable is not set");
     });
   });
 });

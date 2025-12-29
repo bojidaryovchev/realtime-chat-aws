@@ -42,7 +42,7 @@ export function createPushConsumer(): Consumer {
             logger.error({ error, messageId: message.MessageId }, "Failed to process push notification");
             throw error; // Re-throw to trigger retry/DLQ
           }
-        })
+        }),
       );
     },
   });
@@ -71,7 +71,7 @@ async function sendPushNotification(payload: PushNotificationPayload): Promise<v
   // This would integrate with:
   // - Firebase Cloud Messaging (FCM) for Android
   // - Apple Push Notification service (APNs) for iOS
-  // 
+  //
   // Example with firebase-admin:
   // import admin from 'firebase-admin';
   // await admin.messaging().sendEachForMulticast({
@@ -80,8 +80,5 @@ async function sendPushNotification(payload: PushNotificationPayload): Promise<v
   //   data: payload.data,
   // });
 
-  logger.info(
-    { userId: payload.userId, title: payload.title },
-    "Push notification would be sent (not implemented)"
-  );
+  logger.info({ userId: payload.userId, title: payload.title }, "Push notification would be sent (not implemented)");
 }

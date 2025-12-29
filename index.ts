@@ -19,7 +19,7 @@ import { createWaf } from "./src/waf";
 
 /**
  * Main Pulumi program for Realtime Chat Infrastructure
- * 
+ *
  * Architecture Overview:
  * ┌─────────────────────────────────────────────────────────────────┐
  * │                           Internet                              │
@@ -120,7 +120,7 @@ const ecsServicesOutputs = createEcsServices(
   iamOutputs,
   rdsOutputs,
   redisOutputs,
-  sqsOutputs
+  sqsOutputs,
 );
 
 // ==================== ECS Workers Service ====================
@@ -133,7 +133,7 @@ const workersServiceOutputs = createWorkersService(
   iamOutputs,
   rdsOutputs,
   redisOutputs,
-  sqsOutputs
+  sqsOutputs,
 );
 
 // ==================== Observability ====================
@@ -145,7 +145,7 @@ const observabilityOutputs = createObservability(
   rdsOutputs,
   redisOutputs,
   albOutputs,
-  sqsOutputs
+  sqsOutputs,
 );
 
 // ==================== Stack Outputs ====================

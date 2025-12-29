@@ -23,7 +23,7 @@ export function createIamRoles(
   config: Config,
   sqsOutputs: SqsOutputs,
   rdsOutputs: RdsOutputs,
-  redisOutputs: RedisOutputs
+  redisOutputs: RedisOutputs,
 ): IamOutputs {
   const tags = getTags(config);
   const baseName = `${config.projectName}-${config.environment}`;
@@ -31,43 +31,37 @@ export function createIamRoles(
   const currentAccount = aws.getCallerIdentityOutput();
 
   // ECS Task Execution Role (shared by all services)
-  const ecsTaskExecutionRole = new aws.iam.Role(
-    `${baseName}-ecs-execution-role`,
-    {
-      name: `${baseName}-ecs-execution-role`,
-      assumeRolePolicy: JSON.stringify({
-        Version: "2012-10-17",
-        Statement: [
-          {
-            Effect: "Allow",
-            Principal: {
-              Service: "ecs-tasks.amazonaws.com",
-            },
-            Action: "sts:AssumeRole",
+  const ecsTaskExecutionRole = new aws.iam.Role(`${baseName}-ecs-execution-role`, {
+    name: `${baseName}-ecs-execution-role`,
+    assumeRolePolicy: JSON.stringify({
+      Version: "2012-10-17",
+      Statement: [
+        {
+          Effect: "Allow",
+          Principal: {
+            Service: "ecs-tasks.amazonaws.com",
           },
-        ],
-      }),
-      tags: {
-        ...tags,
-        Name: `${baseName}-ecs-execution-role`,
-      },
-    }
-  );
+          Action: "sts:AssumeRole",
+        },
+      ],
+    }),
+    tags: {
+      ...tags,
+      Name: `${baseName}-ecs-execution-role`,
+    },
+  });
 
   // Attach managed policy for basic ECS task execution
   new aws.iam.RolePolicyAttachment(`${baseName}-ecs-execution-policy`, {
     role: ecsTaskExecutionRole.name,
-    policyArn:
-      "arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy",
+    policyArn: "arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy",
   });
 
   // Custom policy for secrets access
-  const secretsAccessPolicy = new aws.iam.Policy(
-    `${baseName}-secrets-access-policy`,
-    {
-      name: `${baseName}-secrets-access-policy`,
-      description: "Allow ECS tasks to access secrets",
-      policy: pulumi.interpolate`{
+  const secretsAccessPolicy = new aws.iam.Policy(`${baseName}-secrets-access-policy`, {
+    name: `${baseName}-secrets-access-policy`,
+    description: "Allow ECS tasks to access secrets",
+    policy: pulumi.interpolate`{
         "Version": "2012-10-17",
         "Statement": [
           {
@@ -102,12 +96,11 @@ export function createIamRoles(
           }
         ]
       }`,
-      tags: {
-        ...tags,
-        Name: `${baseName}-secrets-access-policy`,
-      },
-    }
-  );
+    tags: {
+      ...tags,
+      Name: `${baseName}-secrets-access-policy`,
+    },
+  });
 
   new aws.iam.RolePolicyAttachment(`${baseName}-secrets-access-attachment`, {
     role: ecsTaskExecutionRole.name,
@@ -198,36 +191,31 @@ export function createIamRoles(
   });
 
   // Realtime Task Role - Runtime permissions
-  const ecsRealtimeTaskRole = new aws.iam.Role(
-    `${baseName}-realtime-task-role`,
-    {
-      name: `${baseName}-realtime-task-role`,
-      assumeRolePolicy: JSON.stringify({
-        Version: "2012-10-17",
-        Statement: [
-          {
-            Effect: "Allow",
-            Principal: {
-              Service: "ecs-tasks.amazonaws.com",
-            },
-            Action: "sts:AssumeRole",
+  const ecsRealtimeTaskRole = new aws.iam.Role(`${baseName}-realtime-task-role`, {
+    name: `${baseName}-realtime-task-role`,
+    assumeRolePolicy: JSON.stringify({
+      Version: "2012-10-17",
+      Statement: [
+        {
+          Effect: "Allow",
+          Principal: {
+            Service: "ecs-tasks.amazonaws.com",
           },
-        ],
-      }),
-      tags: {
-        ...tags,
-        Name: `${baseName}-realtime-task-role`,
-      },
-    }
-  );
+          Action: "sts:AssumeRole",
+        },
+      ],
+    }),
+    tags: {
+      ...tags,
+      Name: `${baseName}-realtime-task-role`,
+    },
+  });
 
   // Realtime Task Policy - SQS send/receive, CloudWatch metrics
-  const realtimeTaskPolicy = new aws.iam.Policy(
-    `${baseName}-realtime-task-policy`,
-    {
-      name: `${baseName}-realtime-task-policy`,
-      description: "Runtime permissions for Realtime service",
-      policy: pulumi.interpolate`{
+  const realtimeTaskPolicy = new aws.iam.Policy(`${baseName}-realtime-task-policy`, {
+    name: `${baseName}-realtime-task-policy`,
+    description: "Runtime permissions for Realtime service",
+    policy: pulumi.interpolate`{
         "Version": "2012-10-17",
         "Statement": [
           {
@@ -276,20 +264,16 @@ export function createIamRoles(
         }
       ]
     }`,
-      tags: {
-        ...tags,
-        Name: `${baseName}-realtime-task-policy`,
-      },
-    }
-  );
+    tags: {
+      ...tags,
+      Name: `${baseName}-realtime-task-policy`,
+    },
+  });
 
-  new aws.iam.RolePolicyAttachment(
-    `${baseName}-realtime-task-policy-attachment`,
-    {
-      role: ecsRealtimeTaskRole.name,
-      policyArn: realtimeTaskPolicy.arn,
-    }
-  );
+  new aws.iam.RolePolicyAttachment(`${baseName}-realtime-task-policy-attachment`, {
+    role: ecsRealtimeTaskRole.name,
+    policyArn: realtimeTaskPolicy.arn,
+  });
 
   // Workers Task Role - Runtime permissions for SQS consumers
   const ecsWorkersTaskRole = new aws.iam.Role(`${baseName}-workers-task-role`, {
@@ -313,12 +297,10 @@ export function createIamRoles(
   });
 
   // Workers Task Policy - Full SQS access (consume, delete, DLQ), CloudWatch metrics
-  const workersTaskPolicy = new aws.iam.Policy(
-    `${baseName}-workers-task-policy`,
-    {
-      name: `${baseName}-workers-task-policy`,
-      description: "Runtime permissions for Workers service (SQS consumers)",
-      policy: pulumi.interpolate`{
+  const workersTaskPolicy = new aws.iam.Policy(`${baseName}-workers-task-policy`, {
+    name: `${baseName}-workers-task-policy`,
+    description: "Runtime permissions for Workers service (SQS consumers)",
+    policy: pulumi.interpolate`{
         "Version": "2012-10-17",
         "Statement": [
           {
@@ -381,20 +363,16 @@ export function createIamRoles(
         }
       ]
     }`,
-      tags: {
-        ...tags,
-        Name: `${baseName}-workers-task-policy`,
-      },
-    }
-  );
+    tags: {
+      ...tags,
+      Name: `${baseName}-workers-task-policy`,
+    },
+  });
 
-  new aws.iam.RolePolicyAttachment(
-    `${baseName}-workers-task-policy-attachment`,
-    {
-      role: ecsWorkersTaskRole.name,
-      policyArn: workersTaskPolicy.arn,
-    }
-  );
+  new aws.iam.RolePolicyAttachment(`${baseName}-workers-task-policy-attachment`, {
+    role: ecsWorkersTaskRole.name,
+    policyArn: workersTaskPolicy.arn,
+  });
 
   return {
     ecsTaskExecutionRole,

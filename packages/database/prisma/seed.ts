@@ -46,10 +46,7 @@ async function main() {
     data: {
       type: "DIRECT",
       participants: {
-        create: [
-          { userId: user1.id },
-          { userId: user2.id },
-        ],
+        create: [{ userId: user1.id }, { userId: user2.id }],
       },
     },
   });
@@ -62,11 +59,7 @@ async function main() {
       type: "GROUP",
       name: "Project Team",
       participants: {
-        create: [
-          { userId: user1.id, role: "ADMIN" },
-          { userId: user2.id },
-          { userId: user3.id },
-        ],
+        create: [{ userId: user1.id, role: "ADMIN" }, { userId: user2.id }, { userId: user3.id }],
       },
     },
   });

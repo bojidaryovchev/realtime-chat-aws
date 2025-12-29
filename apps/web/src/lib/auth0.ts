@@ -34,8 +34,7 @@ export const auth0 = new Auth0Client({
             auth0Id: sub,
             email: email,
             // Generate username from email prefix
-            username: email.split("@")[0].replace(/[^a-zA-Z0-9]/g, "") + 
-              Math.floor(Math.random() * 1000),
+            username: email.split("@")[0].replace(/[^a-zA-Z0-9]/g, "") + Math.floor(Math.random() * 1000),
             displayName: name || email.split("@")[0],
             avatarUrl: picture || undefined,
           },

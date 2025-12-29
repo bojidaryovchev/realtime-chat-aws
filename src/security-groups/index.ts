@@ -19,7 +19,7 @@ export interface SecurityGroupOutputs {
  * - ECS Workers: No inbound traffic (SQS consumers)
  * - RDS: Accepts traffic from ECS only
  * - Redis: Accepts traffic from ECS only
- * 
+ *
  * Security Model Notes:
  * - ECS egress is 0.0.0.0/0 intentionally to allow:
  *   - External API access (Auth0, webhooks, push notification services)
@@ -29,10 +29,7 @@ export interface SecurityGroupOutputs {
  * - Prod: ECS runs in private subnets, egress via NAT Gateway
  * - RDS/Redis have no internet access (egress only to AWS services)
  */
-export function createSecurityGroups(
-  config: Config,
-  vpcOutputs: VpcOutputs
-): SecurityGroupOutputs {
+export function createSecurityGroups(config: Config, vpcOutputs: VpcOutputs): SecurityGroupOutputs {
   const tags = getTags(config);
   const baseName = `${config.projectName}-${config.environment}`;
 
@@ -104,63 +101,57 @@ export function createSecurityGroups(
   });
 
   // ECS Realtime Security Group - Accepts traffic from ALB only (WebSocket)
-  const ecsRealtimeSecurityGroup = new aws.ec2.SecurityGroup(
-    `${baseName}-ecs-realtime-sg`,
-    {
-      name: `${baseName}-ecs-realtime-sg`,
-      description: "Security group for ECS Realtime service (Socket.IO)",
-      vpcId: vpcOutputs.vpc.id,
-      ingress: [
-        {
-          description: "HTTP/WebSocket from ALB",
-          fromPort: 3002,
-          toPort: 3002,
-          protocol: "tcp",
-          securityGroups: [albSecurityGroup.id],
-        },
-      ],
-      egress: [
-        {
-          // Intentionally 0.0.0.0/0 for WebSocket connections and Redis pub/sub
-          description: "Allow outbound for AWS services and external APIs",
-          fromPort: 0,
-          toPort: 0,
-          protocol: "-1",
-          cidrBlocks: ["0.0.0.0/0"],
-        },
-      ],
-      tags: {
-        ...tags,
-        Name: `${baseName}-ecs-realtime-sg`,
+  const ecsRealtimeSecurityGroup = new aws.ec2.SecurityGroup(`${baseName}-ecs-realtime-sg`, {
+    name: `${baseName}-ecs-realtime-sg`,
+    description: "Security group for ECS Realtime service (Socket.IO)",
+    vpcId: vpcOutputs.vpc.id,
+    ingress: [
+      {
+        description: "HTTP/WebSocket from ALB",
+        fromPort: 3002,
+        toPort: 3002,
+        protocol: "tcp",
+        securityGroups: [albSecurityGroup.id],
       },
-    }
-  );
+    ],
+    egress: [
+      {
+        // Intentionally 0.0.0.0/0 for WebSocket connections and Redis pub/sub
+        description: "Allow outbound for AWS services and external APIs",
+        fromPort: 0,
+        toPort: 0,
+        protocol: "-1",
+        cidrBlocks: ["0.0.0.0/0"],
+      },
+    ],
+    tags: {
+      ...tags,
+      Name: `${baseName}-ecs-realtime-sg`,
+    },
+  });
 
   // ECS Workers Security Group - No inbound traffic (SQS consumers only need outbound)
-  const ecsWorkersSecurityGroup = new aws.ec2.SecurityGroup(
-    `${baseName}-ecs-workers-sg`,
-    {
-      name: `${baseName}-ecs-workers-sg`,
-      description: "Security group for ECS Workers service (SQS consumers)",
-      vpcId: vpcOutputs.vpc.id,
-      // No ingress - workers don't receive inbound traffic
-      ingress: [],
-      egress: [
-        {
-          // Intentionally 0.0.0.0/0 for SQS polling, push notifications, external APIs
-          description: "Allow outbound for SQS, RDS, Redis, push services",
-          fromPort: 0,
-          toPort: 0,
-          protocol: "-1",
-          cidrBlocks: ["0.0.0.0/0"],
-        },
-      ],
-      tags: {
-        ...tags,
-        Name: `${baseName}-ecs-workers-sg`,
+  const ecsWorkersSecurityGroup = new aws.ec2.SecurityGroup(`${baseName}-ecs-workers-sg`, {
+    name: `${baseName}-ecs-workers-sg`,
+    description: "Security group for ECS Workers service (SQS consumers)",
+    vpcId: vpcOutputs.vpc.id,
+    // No ingress - workers don't receive inbound traffic
+    ingress: [],
+    egress: [
+      {
+        // Intentionally 0.0.0.0/0 for SQS polling, push notifications, external APIs
+        description: "Allow outbound for SQS, RDS, Redis, push services",
+        fromPort: 0,
+        toPort: 0,
+        protocol: "-1",
+        cidrBlocks: ["0.0.0.0/0"],
       },
-    }
-  );
+    ],
+    tags: {
+      ...tags,
+      Name: `${baseName}-ecs-workers-sg`,
+    },
+  });
 
   // RDS Security Group - Accepts traffic from ECS services only
   const rdsSecurityGroup = new aws.ec2.SecurityGroup(`${baseName}-rds-sg`, {

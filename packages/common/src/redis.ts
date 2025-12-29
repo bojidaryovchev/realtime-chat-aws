@@ -14,17 +14,17 @@ export interface RedisConfig {
 
 /**
  * Creates a configured ioredis client.
- * 
+ *
  * Supports both URL-based and individual parameter configuration.
  * Includes sensible defaults for retry strategy and error handling.
- * 
+ *
  * @example
  * // From environment variables (default)
  * const redis = createRedisClient();
- * 
+ *
  * // With explicit config
  * const redis = createRedisClient({ host: 'localhost', port: 6379 });
- * 
+ *
  * // With URL
  * const redis = createRedisClient({ url: 'redis://localhost:6379' });
  */

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useSocket } from "./socket";
 
 interface Message {
@@ -59,7 +59,15 @@ export function useChat(options: UseChatOptions) {
       }
     };
 
-    const handleTyping = ({ conversationId: convId, userId, isTyping }: { conversationId: string; userId: string; isTyping: boolean }) => {
+    const handleTyping = ({
+      conversationId: convId,
+      userId,
+      isTyping,
+    }: {
+      conversationId: string;
+      userId: string;
+      isTyping: boolean;
+    }) => {
       if (convId !== conversationId) return;
       setTypingUsers((prev) => {
         if (isTyping) {
@@ -110,7 +118,7 @@ export function useChat(options: UseChatOptions) {
         type,
       });
     },
-    [socket, isConnected, conversationId]
+    [socket, isConnected, conversationId],
   );
 
   const setTyping = useCallback(
@@ -122,7 +130,7 @@ export function useChat(options: UseChatOptions) {
         isTyping,
       });
     },
-    [socket, isConnected, conversationId]
+    [socket, isConnected, conversationId],
   );
 
   const markAsRead = useCallback(
@@ -134,7 +142,7 @@ export function useChat(options: UseChatOptions) {
         conversationId,
       });
     },
-    [socket, isConnected, conversationId]
+    [socket, isConnected, conversationId],
   );
 
   return {

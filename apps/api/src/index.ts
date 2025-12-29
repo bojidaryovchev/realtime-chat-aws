@@ -1,15 +1,15 @@
-import Fastify from "fastify";
 import cors from "@fastify/cors";
 import helmet from "@fastify/helmet";
 import sensible from "@fastify/sensible";
 import { prisma } from "@realtime-chat/database";
-import { healthRoutes } from "./routes/health.js";
-import { userRoutes } from "./routes/users.js";
-import { conversationRoutes } from "./routes/conversations.js";
-import { messageRoutes } from "./routes/messages.js";
-import { createRedisClient } from "./lib/redis.js";
-import { loggerOptions } from "./lib/logger.js";
+import Fastify from "fastify";
 import authPlugin from "./lib/authPlugin.js";
+import { loggerOptions } from "./lib/logger.js";
+import { createRedisClient } from "./lib/redis.js";
+import { conversationRoutes } from "./routes/conversations.js";
+import { healthRoutes } from "./routes/health.js";
+import { messageRoutes } from "./routes/messages.js";
+import { userRoutes } from "./routes/users.js";
 
 const PORT = parseInt(process.env.PORT || "3001", 10);
 const HOST = process.env.HOST || "0.0.0.0";

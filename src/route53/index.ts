@@ -9,22 +9,19 @@ export interface Route53Outputs {
 
 /**
  * Creates Route53 DNS records pointing to the ALB
- * 
+ *
  * Architecture:
  * - Web frontend: Hosted on Vercel (manages its own DNS for root/www domain)
  * - Mobile app: Expo (connects to api.domain.com)
  * - API + WebSocket: ALB at api.domain.com
- * 
+ *
  * This module only creates the api.* subdomain record.
  * The root domain is managed by Vercel for the web frontend.
- * 
+ *
  * Uses an EXISTING hosted zone (not creating a new one)
  * The hosted zone ID should be provided in the config
  */
-export function createRoute53(
-  config: Config,
-  albOutputs: AlbOutputs
-): Route53Outputs {
+export function createRoute53(config: Config, albOutputs: AlbOutputs): Route53Outputs {
   const baseName = `${config.projectName}-${config.environment}`;
 
   if (!config.hostedZoneId) {

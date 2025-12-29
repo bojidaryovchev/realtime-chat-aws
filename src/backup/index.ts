@@ -13,16 +13,13 @@ export interface BackupOutputs {
  * - Backup vault with encryption
  * - Backup plan with retention policies (environment-aware)
  * - Backup selection targeting RDS instance
- * 
+ *
  * This supplements RDS native snapshots with AWS Backup for:
  * - Longer retention
  * - Centralized backup management
  * - Point-in-time recovery compliance
  */
-export function createBackup(
-  config: Config,
-  rdsOutputs: RdsOutputs
-): BackupOutputs {
+export function createBackup(config: Config, rdsOutputs: RdsOutputs): BackupOutputs {
   const tags = getTags(config);
   const baseName = `${config.projectName}-${config.environment}`;
 

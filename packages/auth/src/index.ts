@@ -5,5 +5,5 @@
  * This package provides JWT verification using the jose library.
  */
 
-export { verifyAuth0Token, getAuth0Config } from "./server.js";
+export { getAuth0Config, verifyAuth0Token } from "./server.js";
 export type { Auth0Config, JWTPayload } from "./types.js";

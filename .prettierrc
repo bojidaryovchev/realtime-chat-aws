@@ -2,5 +2,5 @@
   "tabWidth": 2,
   "printWidth": 120,
   "endOfLine": "lf",
-  "plugins": ["prettier-plugin-organize-imports"]
+  "plugins": ["prettier-plugin-organize-imports", "prettier-plugin-tailwindcss"]
 }

@@ -40,7 +40,7 @@ export function createVpc(config: Config): VpcOutputs {
 
   // ==================== VPC Flow Logs ====================
   // Capture network traffic for security analysis and troubleshooting
-  
+
   const flowLogGroup = new aws.cloudwatch.LogGroup(`${baseName}-vpc-flow-logs`, {
     name: `/vpc/${baseName}/flow-logs`,
     retentionInDays: config.environment === "prod" ? 30 : 7,
@@ -149,7 +149,7 @@ export function createVpc(config: Config): VpcOutputs {
   // ==================== NAT Gateway(s) ====================
   // config.natGateways: 0 for dev (uses public subnets instead), 1+ for prod
   // When 0, ECS tasks run in public subnets with public IPs
-  
+
   const natGateways: aws.ec2.NatGateway[] = [];
   const natGatewayCount = Math.min(config.natGateways, publicSubnets.length);
 
@@ -164,14 +164,18 @@ export function createVpc(config: Config): VpcOutputs {
     });
 
     // Create NAT Gateway in corresponding public subnet
-    const natGateway = new aws.ec2.NatGateway(`${baseName}-nat-${i}`, {
-      allocationId: natEip.id,
-      subnetId: publicSubnets[i].id,
-      tags: {
-        ...tags,
-        Name: `${baseName}-nat-${i}`,
+    const natGateway = new aws.ec2.NatGateway(
+      `${baseName}-nat-${i}`,
+      {
+        allocationId: natEip.id,
+        subnetId: publicSubnets[i].id,
+        tags: {
+          ...tags,
+          Name: `${baseName}-nat-${i}`,
+        },
       },
-    }, { dependsOn: [internetGateway] });
+      { dependsOn: [internetGateway] },
+    );
 
     natGateways.push(natGateway);
   }
@@ -203,7 +207,7 @@ export function createVpc(config: Config): VpcOutputs {
   // ==================== Private Route Tables ====================
   // If NAT gateways exist: one route table per NAT gateway with internet route
   // If no NAT gateways: single route table with no internet route (VPC endpoints only)
-  
+
   const privateRouteTables: aws.ec2.RouteTable[] = [];
 
   if (natGateways.length > 0) {
@@ -256,7 +260,7 @@ export function createVpc(config: Config): VpcOutputs {
     vpcId: vpc.id,
     serviceName: pulumi.interpolate`com.amazonaws.${region}.s3`,
     vpcEndpointType: "Gateway",
-    routeTableIds: [publicRouteTable.id, ...privateRouteTables.map(rt => rt.id)],
+    routeTableIds: [publicRouteTable.id, ...privateRouteTables.map((rt) => rt.id)],
     tags: {
       ...tags,
       Name: `${baseName}-s3-endpoint`,

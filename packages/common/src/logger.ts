@@ -1,5 +1,5 @@
-import pino from "pino";
 import type { Logger as PinoLogger } from "pino";
+import pino from "pino";
 
 export type Logger = PinoLogger;
 
@@ -35,7 +35,7 @@ export function createLogger(name?: string): Logger {
 /**
  * Creates Fastify-compatible logger options.
  * Use this when initializing Fastify with logging.
- * 
+ *
  * @example
  * const fastify = Fastify({ logger: createFastifyLoggerOptions() });
  */

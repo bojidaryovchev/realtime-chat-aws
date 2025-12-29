@@ -12,7 +12,7 @@ export interface EcrOutputs {
  * - API service image
  * - Realtime service image
  * - Workers service image
- * 
+ *
  * Includes lifecycle policies to manage image retention
  */
 export function createEcrRepositories(config: Config): EcrOutputs {

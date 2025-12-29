@@ -25,10 +25,7 @@ export async function userRoutes(fastify: FastifyInstance) {
 
     let user = await fastify.prisma.user.findFirst({
       where: {
-        OR: [
-          { auth0Id: auth0Sub },
-          ...(email ? [{ email }] : []),
-        ],
+        OR: [{ auth0Id: auth0Sub }, ...(email ? [{ email }] : [])],
       },
       select: {
         id: true,
@@ -91,31 +88,27 @@ export async function userRoutes(fastify: FastifyInstance) {
     // Check if user already exists
     const existingUser = await fastify.prisma.user.findFirst({
       where: {
-        OR: [
-          { auth0Id: auth0Sub },
-          { email },
-          { username: body.username },
-        ],
+        OR: [{ auth0Id: auth0Sub }, { email }, { username: body.username }],
       },
     });
 
     if (existingUser) {
       if (existingUser.auth0Id === auth0Sub) {
-        return reply.status(409).send({ 
-          error: "Conflict", 
-          message: "User already registered" 
+        return reply.status(409).send({
+          error: "Conflict",
+          message: "User already registered",
         });
       }
       if (existingUser.email === email) {
-        return reply.status(409).send({ 
-          error: "Conflict", 
-          message: "Email already in use" 
+        return reply.status(409).send({
+          error: "Conflict",
+          message: "Email already in use",
         });
       }
       if (existingUser.username === body.username) {
-        return reply.status(409).send({ 
-          error: "Conflict", 
-          message: "Username already taken" 
+        return reply.status(409).send({
+          error: "Conflict",
+          message: "Username already taken",
         });
       }
     }

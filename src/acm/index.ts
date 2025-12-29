@@ -33,37 +33,28 @@ export function createAcm(config: Config): AcmOutputs {
     },
     {
       deleteBeforeReplace: true,
-    }
+    },
   );
 
   // Create DNS validation records in existing hosted zone
-  const validationRecords = certificate.domainValidationOptions.apply(
-    (options) =>
-      options.map((option, index) => {
-        return new aws.route53.Record(
-          `${baseName}-cert-validation-${index}`,
-          {
-            name: option.resourceRecordName,
-            type: option.resourceRecordType,
-            zoneId: config.hostedZoneId,
-            records: [option.resourceRecordValue],
-            ttl: 60,
-            allowOverwrite: true,
-          }
-        );
-      })
+  const validationRecords = certificate.domainValidationOptions.apply((options) =>
+    options.map((option, index) => {
+      return new aws.route53.Record(`${baseName}-cert-validation-${index}`, {
+        name: option.resourceRecordName,
+        type: option.resourceRecordType,
+        zoneId: config.hostedZoneId,
+        records: [option.resourceRecordValue],
+        ttl: 60,
+        allowOverwrite: true,
+      });
+    }),
   );
 
   // Wait for certificate validation
-  const certificateValidation = new aws.acm.CertificateValidation(
-    `${baseName}-cert-validation`,
-    {
-      certificateArn: certificate.arn,
-      validationRecordFqdns: validationRecords.apply((records) =>
-        records.map((record) => record.fqdn)
-      ),
-    }
-  );
+  const certificateValidation = new aws.acm.CertificateValidation(`${baseName}-cert-validation`, {
+    certificateArn: certificate.arn,
+    validationRecordFqdns: validationRecords.apply((records) => records.map((record) => record.fqdn)),
+  });
 
   return {
     certificate,

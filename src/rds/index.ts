@@ -37,7 +37,7 @@ export interface RdsOutputs {
 export function createRds(
   config: Config,
   vpcOutputs: VpcOutputs,
-  securityGroupOutputs: SecurityGroupOutputs
+  securityGroupOutputs: SecurityGroupOutputs,
 ): RdsOutputs {
   const tags = getTags(config);
   const baseName = `${config.projectName}-${config.environment}`;
@@ -50,30 +50,24 @@ export function createRds(
   });
 
   // Create Secrets Manager secret for DB credentials
-  const dbCredentialsSecret = new aws.secretsmanager.Secret(
-    `${baseName}-db-credentials`,
-    {
-      name: `${baseName}/db-credentials`,
-      description: "PostgreSQL database credentials",
-      tags: {
-        ...tags,
-        Name: `${baseName}-db-credentials`,
-      },
-    }
-  );
+  const dbCredentialsSecret = new aws.secretsmanager.Secret(`${baseName}-db-credentials`, {
+    name: `${baseName}/db-credentials`,
+    description: "PostgreSQL database credentials",
+    tags: {
+      ...tags,
+      Name: `${baseName}-db-credentials`,
+    },
+  });
 
   // Store credentials in the secret
-  const dbCredentialsSecretVersion = new aws.secretsmanager.SecretVersion(
-    `${baseName}-db-credentials-version`,
-    {
-      secretId: dbCredentialsSecret.id,
-      secretString: pulumi.interpolate`{
+  const dbCredentialsSecretVersion = new aws.secretsmanager.SecretVersion(`${baseName}-db-credentials-version`, {
+    secretId: dbCredentialsSecret.id,
+    secretString: pulumi.interpolate`{
         "username": "chatadmin",
         "password": "${dbPassword.result}",
         "database": "chatdb"
       }`,
-    }
-  );
+  });
 
   // Create DB Subnet Group
   const dbSubnetGroup = new aws.rds.SubnetGroup(`${baseName}-db-subnet-group`, {
@@ -94,84 +88,81 @@ export function createRds(
   // AWS RDS formula: LEAST({DBInstanceClassMemory/9531392}, 5000)
   // We use a more conservative estimate based on instance type
   const maxConnectionsByInstanceClass: Record<string, number> = {
-    "db.t3.micro": 87,      // ~1GB RAM
-    "db.t3.small": 145,     // ~2GB RAM
-    "db.t3.medium": 290,    // ~4GB RAM
-    "db.t3.large": 580,     // ~8GB RAM
-    "db.t3.xlarge": 1160,   // ~16GB RAM
-    "db.t3.2xlarge": 2320,  // ~32GB RAM
-    "db.r6g.large": 580,    // ~16GB RAM (Graviton)
-    "db.r6g.xlarge": 1160,  // ~32GB RAM (Graviton)
+    "db.t3.micro": 87, // ~1GB RAM
+    "db.t3.small": 145, // ~2GB RAM
+    "db.t3.medium": 290, // ~4GB RAM
+    "db.t3.large": 580, // ~8GB RAM
+    "db.t3.xlarge": 1160, // ~16GB RAM
+    "db.t3.2xlarge": 2320, // ~32GB RAM
+    "db.r6g.large": 580, // ~16GB RAM (Graviton)
+    "db.r6g.xlarge": 1160, // ~32GB RAM (Graviton)
     "db.r6g.2xlarge": 2320, // ~64GB RAM (Graviton)
-    "db.r5.large": 580,     // ~16GB RAM
-    "db.r5.xlarge": 1160,   // ~32GB RAM
-    "db.r5.2xlarge": 2320,  // ~64GB RAM
+    "db.r5.large": 580, // ~16GB RAM
+    "db.r5.xlarge": 1160, // ~32GB RAM
+    "db.r5.2xlarge": 2320, // ~64GB RAM
   };
-  
+
   // Default to 200 if instance class not in map (conservative fallback)
   const maxConnections = maxConnectionsByInstanceClass[config.rdsInstanceClass] || 200;
 
-  const dbParameterGroup = new aws.rds.ParameterGroup(
-    `${baseName}-db-param-group`,
-    {
-      family: `postgres${pgMajorVersion}`,
-      name: `${baseName}-db-param-group`,
-      description: "Parameter group optimized for chat application",
-      parameters: [
-        // Connection settings - dynamically calculated based on instance class
-        {
-          name: "max_connections",
-          value: String(maxConnections),
-        },
-        // Logging for debugging
-        {
-          name: "log_statement",
-          value: "ddl",
-        },
-        {
-          name: "log_min_duration_statement",
-          value: "1000", // Log queries taking > 1 second
-        },
-        // Connection logging for debugging
-        {
-          name: "log_connections",
-          value: config.environment === "prod" ? "0" : "1",
-        },
-        {
-          name: "log_disconnections",
-          value: config.environment === "prod" ? "0" : "1",
-        },
-        // Performance settings
-        {
-          name: "shared_buffers",
-          value: "{DBInstanceClassMemory/32768}", // 1/4 of memory in 8KB pages
-          applyMethod: "pending-reboot",
-        },
-        {
-          name: "effective_cache_size",
-          value: "{DBInstanceClassMemory*3/32768}", // 3/4 of memory in 8KB pages
-          applyMethod: "pending-reboot",
-        },
-        // Write-ahead log settings
-        // wal_buffers is auto-tuned by RDS based on shared_buffers
-        // Explicitly setting it can cause issues; let RDS manage it
-        {
-          name: "wal_level",
-          value: "replica", // Enable for read replicas if needed
-          applyMethod: "pending-reboot",
-        },
-        // Connection timeout
-        {
-          name: "idle_in_transaction_session_timeout",
-          value: "300000", // 5 minutes in ms
-        },
-      ],
-      tags: {
-        ...tags,
-        Name: `${baseName}-db-param-group`,
+  const dbParameterGroup = new aws.rds.ParameterGroup(`${baseName}-db-param-group`, {
+    family: `postgres${pgMajorVersion}`,
+    name: `${baseName}-db-param-group`,
+    description: "Parameter group optimized for chat application",
+    parameters: [
+      // Connection settings - dynamically calculated based on instance class
+      {
+        name: "max_connections",
+        value: String(maxConnections),
       },
-    }
-  );
+      // Logging for debugging
+      {
+        name: "log_statement",
+        value: "ddl",
+      },
+      {
+        name: "log_min_duration_statement",
+        value: "1000", // Log queries taking > 1 second
+      },
+      // Connection logging for debugging
+      {
+        name: "log_connections",
+        value: config.environment === "prod" ? "0" : "1",
+      },
+      {
+        name: "log_disconnections",
+        value: config.environment === "prod" ? "0" : "1",
+      },
+      // Performance settings
+      {
+        name: "shared_buffers",
+        value: "{DBInstanceClassMemory/32768}", // 1/4 of memory in 8KB pages
+        applyMethod: "pending-reboot",
+      },
+      {
+        name: "effective_cache_size",
+        value: "{DBInstanceClassMemory*3/32768}", // 3/4 of memory in 8KB pages
+        applyMethod: "pending-reboot",
+      },
+      // Write-ahead log settings
+      // wal_buffers is auto-tuned by RDS based on shared_buffers
+      // Explicitly setting it can cause issues; let RDS manage it
+      {
+        name: "wal_level",
+        value: "replica", // Enable for read replicas if needed
+        applyMethod: "pending-reboot",
+      },
+      // Connection timeout
+      {
+        name: "idle_in_transaction_session_timeout",
+        value: "300000", // 5 minutes in ms
+      },
+    ],
+    tags: {
+      ...tags,
+      Name: `${baseName}-db-param-group`,
+    },
+  });
 
   // Create RDS Instance
   const dbInstance = new aws.rds.Instance(`${baseName}-db`, {
@@ -214,8 +205,7 @@ export function createRds(
     // Deletion protection
     deletionProtection: config.environment === "prod",
     skipFinalSnapshot: config.environment !== "prod",
-    finalSnapshotIdentifier:
-      config.environment === "prod" ? `${baseName}-db-final-snapshot` : undefined,
+    finalSnapshotIdentifier: config.environment === "prod" ? `${baseName}-db-final-snapshot` : undefined,
 
     // Apply changes immediately in dev, during maintenance window in prod
     applyImmediately: config.environment !== "prod",
@@ -295,50 +285,47 @@ export function createRds(
     });
 
     // Security group for RDS Proxy
-    const rdsProxySecurityGroup = new aws.ec2.SecurityGroup(
-      `${baseName}-rds-proxy-sg`,
-      {
-        name: `${baseName}-rds-proxy-sg`,
-        description: "Security group for RDS Proxy",
-        vpcId: vpcOutputs.vpc.id,
-        ingress: [
-          {
-            description: "PostgreSQL from ECS API",
-            fromPort: 5432,
-            toPort: 5432,
-            protocol: "tcp",
-            securityGroups: [securityGroupOutputs.ecsApiSecurityGroup.id],
-          },
-          {
-            description: "PostgreSQL from ECS Realtime",
-            fromPort: 5432,
-            toPort: 5432,
-            protocol: "tcp",
-            securityGroups: [securityGroupOutputs.ecsRealtimeSecurityGroup.id],
-          },
-          {
-            description: "PostgreSQL from ECS Workers",
-            fromPort: 5432,
-            toPort: 5432,
-            protocol: "tcp",
-            securityGroups: [securityGroupOutputs.ecsWorkersSecurityGroup.id],
-          },
-        ],
-        egress: [
-          {
-            description: "Allow connection to RDS",
-            fromPort: 5432,
-            toPort: 5432,
-            protocol: "tcp",
-            securityGroups: [securityGroupOutputs.rdsSecurityGroup.id],
-          },
-        ],
-        tags: {
-          ...tags,
-          Name: `${baseName}-rds-proxy-sg`,
+    const rdsProxySecurityGroup = new aws.ec2.SecurityGroup(`${baseName}-rds-proxy-sg`, {
+      name: `${baseName}-rds-proxy-sg`,
+      description: "Security group for RDS Proxy",
+      vpcId: vpcOutputs.vpc.id,
+      ingress: [
+        {
+          description: "PostgreSQL from ECS API",
+          fromPort: 5432,
+          toPort: 5432,
+          protocol: "tcp",
+          securityGroups: [securityGroupOutputs.ecsApiSecurityGroup.id],
         },
-      }
-    );
+        {
+          description: "PostgreSQL from ECS Realtime",
+          fromPort: 5432,
+          toPort: 5432,
+          protocol: "tcp",
+          securityGroups: [securityGroupOutputs.ecsRealtimeSecurityGroup.id],
+        },
+        {
+          description: "PostgreSQL from ECS Workers",
+          fromPort: 5432,
+          toPort: 5432,
+          protocol: "tcp",
+          securityGroups: [securityGroupOutputs.ecsWorkersSecurityGroup.id],
+        },
+      ],
+      egress: [
+        {
+          description: "Allow connection to RDS",
+          fromPort: 5432,
+          toPort: 5432,
+          protocol: "tcp",
+          securityGroups: [securityGroupOutputs.rdsSecurityGroup.id],
+        },
+      ],
+      tags: {
+        ...tags,
+        Name: `${baseName}-rds-proxy-sg`,
+      },
+    });
 
     // Add ingress rule to RDS security group to allow proxy
     new aws.ec2.SecurityGroupRule(`${baseName}-rds-from-proxy`, {
@@ -375,17 +362,14 @@ export function createRds(
     });
 
     // RDS Proxy Default Target Group
-    const rdsProxyDefaultTargetGroup = new aws.rds.ProxyDefaultTargetGroup(
-      `${baseName}-rds-proxy-tg`,
-      {
-        dbProxyName: rdsProxy.name,
-        connectionPoolConfig: {
-          connectionBorrowTimeout: 120,
-          maxConnectionsPercent: config.rdsProxyMaxConnectionsPercent,
-          maxIdleConnectionsPercent: 50,
-        },
-      }
-    );
+    const rdsProxyDefaultTargetGroup = new aws.rds.ProxyDefaultTargetGroup(`${baseName}-rds-proxy-tg`, {
+      dbProxyName: rdsProxy.name,
+      connectionPoolConfig: {
+        connectionBorrowTimeout: 120,
+        maxConnectionsPercent: config.rdsProxyMaxConnectionsPercent,
+        maxIdleConnectionsPercent: 50,
+      },
+    });
 
     // RDS Proxy Target (the RDS instance)
     new aws.rds.ProxyTarget(`${baseName}-rds-proxy-target`, {
@@ -409,7 +393,7 @@ export function createRds(
       identifier: `${baseName}-db-replica`,
       replicateSourceDb: dbInstance.identifier,
       instanceClass: config.rdsReadReplicaInstanceClass!,
-      
+
       // Network configuration - inherits from source
       vpcSecurityGroupIds: [securityGroupOutputs.rdsSecurityGroup.id],
       publiclyAccessible: false,
@@ -452,9 +436,7 @@ export function createRds(
   }
 
   // Determine which endpoint to use for database connections
-  const dbConnectionEndpoint = config.enableRdsProxy && rdsProxyEndpoint
-    ? rdsProxyEndpoint
-    : dbInstance.endpoint;
+  const dbConnectionEndpoint = config.enableRdsProxy && rdsProxyEndpoint ? rdsProxyEndpoint : dbInstance.endpoint;
 
   return {
     dbInstance,

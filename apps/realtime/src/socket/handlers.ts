@@ -1,7 +1,7 @@
-import { Server as SocketIOServer, Socket } from "socket.io";
-import { PrismaClient, UserStatus, MessageType, Prisma } from "@realtime-chat/database";
+import { getAuth0Config, verifyAuth0Token } from "@realtime-chat/auth";
+import { MessageType, Prisma, PrismaClient, UserStatus } from "@realtime-chat/database";
+import { Socket, Server as SocketIOServer } from "socket.io";
 import type { RedisClient } from "../lib/redis.js";
-import { verifyAuth0Token, getAuth0Config } from "@realtime-chat/auth";
 
 interface AuthenticatedSocket extends Socket {
   userId?: string;
@@ -59,10 +59,7 @@ export function setupSocketHandlers(io: SocketIOServer, prisma: PrismaClient, re
       // Find user by Auth0 sub (stored in auth0Id field) or email
       let user = await prisma.user.findFirst({
         where: {
-          OR: [
-            { auth0Id: payload.sub },
-            ...(payload.email ? [{ email: payload.email }] : []),
-          ],
+          OR: [{ auth0Id: payload.sub }, ...(payload.email ? [{ email: payload.email }] : [])],
         },
         select: { id: true, username: true, displayName: true, avatarUrl: true, auth0Id: true },
       });

@@ -1,7 +1,7 @@
+import type { JWTPayload } from "@realtime-chat/auth";
 import type { prisma } from "@realtime-chat/database";
 import type { FastifyReply } from "fastify";
 import type Redis from "ioredis";
-import type { JWTPayload } from "@realtime-chat/auth";
 
 // Augment Fastify's types
 declare module "fastify" {

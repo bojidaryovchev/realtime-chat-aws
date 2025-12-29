@@ -39,10 +39,7 @@ function getJWKS(domain: string) {
  * console.log(payload.sub); // "auth0|123456"
  * ```
  */
-export async function verifyAuth0Token(
-  token: string,
-  config: Auth0Config
-): Promise<JWTPayload> {
+export async function verifyAuth0Token(token: string, config: Auth0Config): Promise<JWTPayload> {
   const { domain, audience } = config;
 
   const JWKS = getJWKS(domain);

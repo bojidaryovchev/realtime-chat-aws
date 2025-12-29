@@ -1,5 +1,5 @@
-import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
-import { getEnv, requireEnv, getEnvNumber, getEnvBoolean } from "../src/env.js";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { getEnv, getEnvBoolean, getEnvNumber, requireEnv } from "../src/env.js";
 
 describe("Environment Utilities", () => {
   const originalEnv = process.env;
@@ -38,16 +38,12 @@ describe("Environment Utilities", () => {
 
     it("should throw when not set", () => {
       delete process.env.REQUIRED_VAR;
-      expect(() => requireEnv("REQUIRED_VAR")).toThrow(
-        "Required environment variable REQUIRED_VAR is not set"
-      );
+      expect(() => requireEnv("REQUIRED_VAR")).toThrow("Required environment variable REQUIRED_VAR is not set");
     });
 
     it("should throw when empty string", () => {
       process.env.REQUIRED_VAR = "";
-      expect(() => requireEnv("REQUIRED_VAR")).toThrow(
-        "Required environment variable REQUIRED_VAR is not set"
-      );
+      expect(() => requireEnv("REQUIRED_VAR")).toThrow("Required environment variable REQUIRED_VAR is not set");
     });
   });
 

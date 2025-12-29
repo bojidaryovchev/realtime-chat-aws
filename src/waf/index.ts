@@ -12,13 +12,10 @@ export interface WafOutputs {
  * - AWS Managed Rules for common threats
  * - Rate-based rules for DDoS protection
  * - Path-specific rate limits for API and WebSocket endpoints
- * 
+ *
  * Only created when config.enableWaf is true (typically prod only)
  */
-export function createWaf(
-  config: Config,
-  albOutputs: AlbOutputs
-): WafOutputs {
+export function createWaf(config: Config, albOutputs: AlbOutputs): WafOutputs {
   // WAF is optional - skip in dev to save costs
   if (!config.enableWaf) {
     return {};
@@ -43,7 +40,7 @@ export function createWaf(
 
     rules: [
       // ==================== AWS Managed Rules ====================
-      
+
       // Common Rule Set - Baseline protection
       {
         name: "AWSManagedRulesCommonRuleSet",
@@ -60,7 +57,7 @@ export function createWaf(
               // Override rules that might block legitimate WebSocket traffic
               {
                 name: "SizeRestrictions_BODY", // WebSocket messages can be large
-                actionToUse: { count: {} },    // Count instead of block
+                actionToUse: { count: {} }, // Count instead of block
               },
               {
                 name: "CrossSiteScripting_BODY", // Chat messages might trigger false positives
@@ -252,13 +249,10 @@ export function createWaf(
   });
 
   // Associate WAF with ALB
-  const webAclAssociation = new aws.wafv2.WebAclAssociation(
-    `${baseName}-waf-alb-association`,
-    {
-      resourceArn: albOutputs.alb.arn,
-      webAclArn: webAcl.arn,
-    }
-  );
+  const webAclAssociation = new aws.wafv2.WebAclAssociation(`${baseName}-waf-alb-association`, {
+    resourceArn: albOutputs.alb.arn,
+    webAclArn: webAcl.arn,
+  });
 
   return {
     webAcl,

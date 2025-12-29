@@ -32,7 +32,7 @@ export interface RedisOutputs {
 export function createRedis(
   config: Config,
   vpcOutputs: VpcOutputs,
-  securityGroupOutputs: SecurityGroupOutputs
+  securityGroupOutputs: SecurityGroupOutputs,
 ): RedisOutputs {
   const tags = getTags(config);
   const baseName = `${config.projectName}-${config.environment}`;
@@ -46,177 +46,159 @@ export function createRedis(
   });
 
   // Store AUTH token in Secrets Manager for ECS tasks to retrieve
-  const redisAuthSecret = new aws.secretsmanager.Secret(
-    `${baseName}-redis-auth`,
-    {
-      name: `${baseName}/redis-auth`,
-      description: "Redis AUTH token for ElastiCache authentication",
-      tags: {
-        ...tags,
-        Name: `${baseName}-redis-auth`,
-      },
-    }
-  );
+  const redisAuthSecret = new aws.secretsmanager.Secret(`${baseName}-redis-auth`, {
+    name: `${baseName}/redis-auth`,
+    description: "Redis AUTH token for ElastiCache authentication",
+    tags: {
+      ...tags,
+      Name: `${baseName}-redis-auth`,
+    },
+  });
 
-  new aws.secretsmanager.SecretVersion(
-    `${baseName}-redis-auth-version`,
-    {
-      secretId: redisAuthSecret.id,
-      secretString: redisAuthToken.result,
-    }
-  );
+  new aws.secretsmanager.SecretVersion(`${baseName}-redis-auth-version`, {
+    secretId: redisAuthSecret.id,
+    secretString: redisAuthToken.result,
+  });
 
   // Create Redis Subnet Group (shared by all clusters)
-  const redisSubnetGroup = new aws.elasticache.SubnetGroup(
-    `${baseName}-redis-subnet-group`,
-    {
-      name: `${baseName}-redis-subnet-group`,
-      subnetIds: vpcOutputs.privateSubnets.map((subnet) => subnet.id),
-      description: "Subnet group for ElastiCache Redis",
-      tags: {
-        ...tags,
-        Name: `${baseName}-redis-subnet-group`,
-      },
-    }
-  );
+  const redisSubnetGroup = new aws.elasticache.SubnetGroup(`${baseName}-redis-subnet-group`, {
+    name: `${baseName}-redis-subnet-group`,
+    subnetIds: vpcOutputs.privateSubnets.map((subnet) => subnet.id),
+    description: "Subnet group for ElastiCache Redis",
+    tags: {
+      ...tags,
+      Name: `${baseName}-redis-subnet-group`,
+    },
+  });
 
   // Create Parameter Group optimized for Socket.IO (shared settings)
-  const redisParameterGroup = new aws.elasticache.ParameterGroup(
-    `${baseName}-redis-param-group`,
-    {
-      family: "redis7",
-      name: `${baseName}-redis-param-group`,
-      description: "Parameter group optimized for Socket.IO pub/sub",
-      parameters: [
-        // Memory management
-        {
-          name: "maxmemory-policy",
-          value: "volatile-lru", // Evict keys with TTL using LRU
-        },
-        // Pub/Sub optimization
-        {
-          name: "notify-keyspace-events",
-          value: "Ex", // Enable expired events for presence
-        },
-        // Timeout settings
-        {
-          name: "timeout",
-          value: "0", // No timeout - keep connections alive
-        },
-        // TCP keepalive
-        {
-          name: "tcp-keepalive",
-          value: "300", // 5 minutes
-        },
-      ],
-      tags: {
-        ...tags,
-        Name: `${baseName}-redis-param-group`,
+  const redisParameterGroup = new aws.elasticache.ParameterGroup(`${baseName}-redis-param-group`, {
+    family: "redis7",
+    name: `${baseName}-redis-param-group`,
+    description: "Parameter group optimized for Socket.IO pub/sub",
+    parameters: [
+      // Memory management
+      {
+        name: "maxmemory-policy",
+        value: "volatile-lru", // Evict keys with TTL using LRU
       },
-    }
-  );
+      // Pub/Sub optimization
+      {
+        name: "notify-keyspace-events",
+        value: "Ex", // Enable expired events for presence
+      },
+      // Timeout settings
+      {
+        name: "timeout",
+        value: "0", // No timeout - keep connections alive
+      },
+      // TCP keepalive
+      {
+        name: "tcp-keepalive",
+        value: "300", // 5 minutes
+      },
+    ],
+    tags: {
+      ...tags,
+      Name: `${baseName}-redis-param-group`,
+    },
+  });
 
   // ==================== Split Mode (Production) ====================
   if (config.enableRedisSplit) {
     // Adapter Cluster - High throughput pub/sub for Socket.IO
     // Handles message fanout across instances, needs high network throughput
-    const redisAdapterCluster = new aws.elasticache.ReplicationGroup(
-      `${baseName}-redis-adapter`,
-      {
-        replicationGroupId: `${baseName}-redis-adapter`,
-        description: "Redis cluster for Socket.IO adapter pub/sub (high throughput)",
-        
-        // Node configuration - larger for pub/sub throughput
-        nodeType: config.redisAdapterNodeType,
-        numCacheClusters: config.redisAdapterReplicas! + 1, // primary + replicas (validated in config)
-        
-        // Engine configuration
-        engine: "redis",
-        engineVersion: "7.1",
-        port: 6379,
-        parameterGroupName: redisParameterGroup.name,
+    const redisAdapterCluster = new aws.elasticache.ReplicationGroup(`${baseName}-redis-adapter`, {
+      replicationGroupId: `${baseName}-redis-adapter`,
+      description: "Redis cluster for Socket.IO adapter pub/sub (high throughput)",
 
-        // Network configuration
-        subnetGroupName: redisSubnetGroup.name,
-        securityGroupIds: [securityGroupOutputs.redisSecurityGroup.id],
+      // Node configuration - larger for pub/sub throughput
+      nodeType: config.redisAdapterNodeType,
+      numCacheClusters: config.redisAdapterReplicas! + 1, // primary + replicas (validated in config)
 
-        // High availability
-        automaticFailoverEnabled: true,
-        multiAzEnabled: true,
+      // Engine configuration
+      engine: "redis",
+      engineVersion: "7.1",
+      port: 6379,
+      parameterGroupName: redisParameterGroup.name,
 
-        // Security
-        atRestEncryptionEnabled: true,
-        transitEncryptionEnabled: true,
-        authToken: redisAuthToken.result, // AUTH token for defense-in-depth
+      // Network configuration
+      subnetGroupName: redisSubnetGroup.name,
+      securityGroupIds: [securityGroupOutputs.redisSecurityGroup.id],
 
-        // Maintenance
-        maintenanceWindow: "sun:05:00-sun:06:00", // UTC
-        snapshotWindow: "03:00-04:00", // UTC
-        snapshotRetentionLimit: 7,
+      // High availability
+      automaticFailoverEnabled: true,
+      multiAzEnabled: true,
 
-        // Apply changes during maintenance window
-        applyImmediately: false,
+      // Security
+      atRestEncryptionEnabled: true,
+      transitEncryptionEnabled: true,
+      authToken: redisAuthToken.result, // AUTH token for defense-in-depth
 
-        // Auto minor version upgrade
-        autoMinorVersionUpgrade: true,
+      // Maintenance
+      maintenanceWindow: "sun:05:00-sun:06:00", // UTC
+      snapshotWindow: "03:00-04:00", // UTC
+      snapshotRetentionLimit: 7,
 
-        tags: {
-          ...tags,
-          Name: `${baseName}-redis-adapter`,
-          Purpose: "socket-io-adapter",
-        },
-      }
-    );
+      // Apply changes during maintenance window
+      applyImmediately: false,
+
+      // Auto minor version upgrade
+      autoMinorVersionUpgrade: true,
+
+      tags: {
+        ...tags,
+        Name: `${baseName}-redis-adapter`,
+        Purpose: "socket-io-adapter",
+      },
+    });
 
     // State Cluster - Presence, sessions, rate-limit counters
     // Handles high read workloads, less pub/sub traffic
-    const redisStateCluster = new aws.elasticache.ReplicationGroup(
-      `${baseName}-redis-state`,
-      {
-        replicationGroupId: `${baseName}-redis-state`,
-        description: "Redis cluster for presence/sessions/rate-limits (high read)",
-        
-        // Node configuration - can be smaller than adapter
-        nodeType: config.redisStateNodeType,
-        numCacheClusters: config.redisStateReplicas! + 1, // primary + replicas (validated in config)
-        
-        // Engine configuration
-        engine: "redis",
-        engineVersion: "7.1",
-        port: 6379,
-        parameterGroupName: redisParameterGroup.name,
+    const redisStateCluster = new aws.elasticache.ReplicationGroup(`${baseName}-redis-state`, {
+      replicationGroupId: `${baseName}-redis-state`,
+      description: "Redis cluster for presence/sessions/rate-limits (high read)",
 
-        // Network configuration
-        subnetGroupName: redisSubnetGroup.name,
-        securityGroupIds: [securityGroupOutputs.redisSecurityGroup.id],
+      // Node configuration - can be smaller than adapter
+      nodeType: config.redisStateNodeType,
+      numCacheClusters: config.redisStateReplicas! + 1, // primary + replicas (validated in config)
 
-        // High availability
-        automaticFailoverEnabled: true,
-        multiAzEnabled: true,
+      // Engine configuration
+      engine: "redis",
+      engineVersion: "7.1",
+      port: 6379,
+      parameterGroupName: redisParameterGroup.name,
 
-        // Security
-        atRestEncryptionEnabled: true,
-        transitEncryptionEnabled: true,
-        authToken: redisAuthToken.result, // AUTH token for defense-in-depth
+      // Network configuration
+      subnetGroupName: redisSubnetGroup.name,
+      securityGroupIds: [securityGroupOutputs.redisSecurityGroup.id],
 
-        // Maintenance (offset from adapter cluster)
-        maintenanceWindow: "sun:06:00-sun:07:00", // UTC
-        snapshotWindow: "04:00-05:00", // UTC
-        snapshotRetentionLimit: 7,
+      // High availability
+      automaticFailoverEnabled: true,
+      multiAzEnabled: true,
 
-        // Apply changes during maintenance window
-        applyImmediately: false,
+      // Security
+      atRestEncryptionEnabled: true,
+      transitEncryptionEnabled: true,
+      authToken: redisAuthToken.result, // AUTH token for defense-in-depth
 
-        // Auto minor version upgrade
-        autoMinorVersionUpgrade: true,
+      // Maintenance (offset from adapter cluster)
+      maintenanceWindow: "sun:06:00-sun:07:00", // UTC
+      snapshotWindow: "04:00-05:00", // UTC
+      snapshotRetentionLimit: 7,
 
-        tags: {
-          ...tags,
-          Name: `${baseName}-redis-state`,
-          Purpose: "presence-sessions",
-        },
-      }
-    );
+      // Apply changes during maintenance window
+      applyImmediately: false,
+
+      // Auto minor version upgrade
+      autoMinorVersionUpgrade: true,
+
+      tags: {
+        ...tags,
+        Name: `${baseName}-redis-state`,
+        Purpose: "presence-sessions",
+      },
+    });
 
     return {
       // Return adapter as primary for backward compatibility
@@ -236,52 +218,49 @@ export function createRedis(
 
   // ==================== Single Mode (Development) ====================
   // Create single Redis Replication Group for all workloads
-  const redisCluster = new aws.elasticache.ReplicationGroup(
-    `${baseName}-redis`,
-    {
-      replicationGroupId: `${baseName}-redis`,
-      description: "Redis cluster for Socket.IO adapter and caching",
-      
-      // Node configuration
-      nodeType: config.redisNodeType,
-      numCacheClusters: config.redisNumCacheNodes,
-      
-      // Engine configuration
-      engine: "redis",
-      engineVersion: "7.1",
-      port: 6379,
-      parameterGroupName: redisParameterGroup.name,
+  const redisCluster = new aws.elasticache.ReplicationGroup(`${baseName}-redis`, {
+    replicationGroupId: `${baseName}-redis`,
+    description: "Redis cluster for Socket.IO adapter and caching",
 
-      // Network configuration
-      subnetGroupName: redisSubnetGroup.name,
-      securityGroupIds: [securityGroupOutputs.redisSecurityGroup.id],
+    // Node configuration
+    nodeType: config.redisNodeType,
+    numCacheClusters: config.redisNumCacheNodes,
 
-      // High availability
-      automaticFailoverEnabled: config.redisNumCacheNodes > 1,
-      multiAzEnabled: config.redisNumCacheNodes > 1,
+    // Engine configuration
+    engine: "redis",
+    engineVersion: "7.1",
+    port: 6379,
+    parameterGroupName: redisParameterGroup.name,
 
-      // Security
-      atRestEncryptionEnabled: true,
-      transitEncryptionEnabled: true,
-      authToken: redisAuthToken.result, // AUTH token for defense-in-depth
+    // Network configuration
+    subnetGroupName: redisSubnetGroup.name,
+    securityGroupIds: [securityGroupOutputs.redisSecurityGroup.id],
 
-      // Maintenance
-      maintenanceWindow: "sun:05:00-sun:06:00", // UTC
-      snapshotWindow: "03:00-04:00", // UTC
-      snapshotRetentionLimit: config.environment === "prod" ? 7 : 1,
+    // High availability
+    automaticFailoverEnabled: config.redisNumCacheNodes > 1,
+    multiAzEnabled: config.redisNumCacheNodes > 1,
 
-      // Apply changes immediately in dev
-      applyImmediately: config.environment !== "prod",
+    // Security
+    atRestEncryptionEnabled: true,
+    transitEncryptionEnabled: true,
+    authToken: redisAuthToken.result, // AUTH token for defense-in-depth
 
-      // Auto minor version upgrade
-      autoMinorVersionUpgrade: true,
+    // Maintenance
+    maintenanceWindow: "sun:05:00-sun:06:00", // UTC
+    snapshotWindow: "03:00-04:00", // UTC
+    snapshotRetentionLimit: config.environment === "prod" ? 7 : 1,
 
-      tags: {
-        ...tags,
-        Name: `${baseName}-redis`,
-      },
-    }
-  );
+    // Apply changes immediately in dev
+    applyImmediately: config.environment !== "prod",
+
+    // Auto minor version upgrade
+    autoMinorVersionUpgrade: true,
+
+    tags: {
+      ...tags,
+      Name: `${baseName}-redis`,
+    },
+  });
 
   return {
     redisCluster,

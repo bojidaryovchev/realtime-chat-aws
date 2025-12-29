@@ -32,27 +32,24 @@ export function createEcsCluster(config: Config): EcsClusterOutputs {
   });
 
   // Configure capacity providers
-  const clusterCapacityProviders = new aws.ecs.ClusterCapacityProviders(
-    `${baseName}-cluster-cp`,
-    {
-      clusterName: cluster.name,
-      capacityProviders: ["FARGATE", "FARGATE_SPOT"],
-      defaultCapacityProviderStrategies: [
-        {
-          // Use FARGATE for reliability in production
-          capacityProvider: "FARGATE",
-          weight: config.environment === "prod" ? 100 : 50,
-          base: 1,
-        },
-        {
-          // Use FARGATE_SPOT for cost savings in dev
-          capacityProvider: "FARGATE_SPOT",
-          weight: config.environment === "prod" ? 0 : 50,
-          base: 0,
-        },
-      ],
-    }
-  );
+  const clusterCapacityProviders = new aws.ecs.ClusterCapacityProviders(`${baseName}-cluster-cp`, {
+    clusterName: cluster.name,
+    capacityProviders: ["FARGATE", "FARGATE_SPOT"],
+    defaultCapacityProviderStrategies: [
+      {
+        // Use FARGATE for reliability in production
+        capacityProvider: "FARGATE",
+        weight: config.environment === "prod" ? 100 : 50,
+        base: 1,
+      },
+      {
+        // Use FARGATE_SPOT for cost savings in dev
+        capacityProvider: "FARGATE_SPOT",
+        weight: config.environment === "prod" ? 0 : 50,
+        base: 0,
+      },
+    ],
+  });
 
   return {
     cluster,

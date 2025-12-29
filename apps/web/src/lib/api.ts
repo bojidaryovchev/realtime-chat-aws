@@ -9,10 +9,7 @@ interface ApiResponse<T> {
   error?: string;
 }
 
-async function request<T>(
-  endpoint: string,
-  options: RequestInit & ApiClientOptions = {}
-): Promise<ApiResponse<T>> {
+async function request<T>(endpoint: string, options: RequestInit & ApiClientOptions = {}): Promise<ApiResponse<T>> {
   const { token, ...fetchOptions } = options;
 
   const headers: HeadersInit = {

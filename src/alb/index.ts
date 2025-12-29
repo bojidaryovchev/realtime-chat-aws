@@ -27,7 +27,7 @@ export function createAlb(
   config: Config,
   vpcOutputs: VpcOutputs,
   securityGroupOutputs: SecurityGroupOutputs,
-  acmOutputs?: AcmOutputs
+  acmOutputs?: AcmOutputs,
 ): AlbOutputs {
   const tags = getTags(config);
   const baseName = `${config.projectName}-${config.environment}`;
@@ -36,7 +36,7 @@ export function createAlb(
 
   // ==================== ALB Access Logs S3 Bucket ====================
   // Store ALB access logs for security analysis and debugging
-  
+
   const albLogsBucket = new aws.s3.BucketV2(`${baseName}-alb-logs`, {
     bucket: `${baseName}-alb-logs`,
     forceDestroy: config.environment !== "prod", // Allow deletion in dev
@@ -49,11 +49,13 @@ export function createAlb(
   // Enable server-side encryption
   new aws.s3.BucketServerSideEncryptionConfigurationV2(`${baseName}-alb-logs-encryption`, {
     bucket: albLogsBucket.id,
-    rules: [{
-      applyServerSideEncryptionByDefault: {
-        sseAlgorithm: "AES256",
+    rules: [
+      {
+        applyServerSideEncryptionByDefault: {
+          sseAlgorithm: "AES256",
+        },
       },
-    }],
+    ],
   });
 
   // Block public access
@@ -68,13 +70,15 @@ export function createAlb(
   // Lifecycle policy to expire old logs
   new aws.s3.BucketLifecycleConfigurationV2(`${baseName}-alb-logs-lifecycle`, {
     bucket: albLogsBucket.id,
-    rules: [{
-      id: "expire-old-logs",
-      status: "Enabled",
-      expiration: {
-        days: config.environment === "prod" ? 90 : 30,
+    rules: [
+      {
+        id: "expire-old-logs",
+        status: "Enabled",
+        expiration: {
+          days: config.environment === "prod" ? 90 : 30,
+        },
       },
-    }],
+    ],
   });
 
   // Bucket policy to allow ALB to write logs
@@ -82,8 +86,9 @@ export function createAlb(
   // https://docs.aws.amazon.com/elasticloadbalancing/latest/application/enable-access-logging.html
   const albLogsBucketPolicy = new aws.s3.BucketPolicy(`${baseName}-alb-logs-policy`, {
     bucket: albLogsBucket.id,
-    policy: pulumi.all([albLogsBucket.arn, currentAccount.accountId, currentRegion.name]).apply(
-      ([bucketArn, accountId, region]: [string, string, string]) => {
+    policy: pulumi
+      .all([albLogsBucket.arn, currentAccount.accountId, currentRegion.name])
+      .apply(([bucketArn, accountId, region]: [string, string, string]) => {
         // ELB account IDs by region for log delivery
         const elbAccountIds: Record<string, string> = {
           "us-east-1": "127311923021",
@@ -117,31 +122,34 @@ export function createAlb(
             },
           ],
         });
-      }
-    ),
+      }),
   });
 
   // Create Application Load Balancer
-  const alb = new aws.lb.LoadBalancer(`${baseName}-alb`, {
-    name: `${baseName}-alb`,
-    internal: false,
-    loadBalancerType: "application",
-    securityGroups: [securityGroupOutputs.albSecurityGroup.id],
-    subnets: vpcOutputs.publicSubnets.map((subnet) => subnet.id),
-    enableDeletionProtection: config.environment === "prod",
-    // Increased idle timeout for WebSocket connections (300 seconds = 5 minutes)
-    idleTimeout: 300,
-    enableHttp2: true,
-    // Access logs for security and debugging
-    accessLogs: {
-      bucket: albLogsBucket.id,
-      enabled: true,
+  const alb = new aws.lb.LoadBalancer(
+    `${baseName}-alb`,
+    {
+      name: `${baseName}-alb`,
+      internal: false,
+      loadBalancerType: "application",
+      securityGroups: [securityGroupOutputs.albSecurityGroup.id],
+      subnets: vpcOutputs.publicSubnets.map((subnet) => subnet.id),
+      enableDeletionProtection: config.environment === "prod",
+      // Increased idle timeout for WebSocket connections (300 seconds = 5 minutes)
+      idleTimeout: 300,
+      enableHttp2: true,
+      // Access logs for security and debugging
+      accessLogs: {
+        bucket: albLogsBucket.id,
+        enabled: true,
+      },
+      tags: {
+        ...tags,
+        Name: `${baseName}-alb`,
+      },
     },
-    tags: {
-      ...tags,
-      Name: `${baseName}-alb`,
-    },
-  }, { dependsOn: [albLogsBucketPolicy] });
+    { dependsOn: [albLogsBucketPolicy] },
+  );
 
   // API Target Group
   const apiTargetGroup = new aws.lb.TargetGroup(`${baseName}-api-tg`, {
@@ -227,7 +235,7 @@ export function createAlb(
   // HTTPS Listener
   // Use validated ACM certificate if provided, otherwise fall back to config.certificateArn
   const certificateArn = acmOutputs?.certificateValidation.certificateArn || config.certificateArn;
-  
+
   if (!certificateArn) {
     throw new Error("Either ACM outputs or certificateArn config must be provided for HTTPS");
   }

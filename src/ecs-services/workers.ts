@@ -21,7 +21,7 @@ export interface WorkersServiceOutputs {
  * - Consumes push notification queue
  * - Consumes offline message queue
  * - Auto-scales based on queue depth and message age
- * 
+ *
  * This separates background work from API/Realtime services
  * and provides proper DLQ handling and idempotency.
  */
@@ -33,7 +33,7 @@ export function createWorkersService(
   iamOutputs: IamOutputs,
   rdsOutputs: RdsOutputs,
   redisOutputs: RedisOutputs,
-  sqsOutputs: SqsOutputs
+  sqsOutputs: SqsOutputs,
 ): WorkersServiceOutputs {
   const tags = getTags(config);
   const baseName = `${config.projectName}-${config.environment}`;
@@ -63,124 +63,121 @@ export function createWorkersService(
         operatingSystemFamily: "LINUX" as const,
       };
 
-  const workersTaskDefinition = new aws.ecs.TaskDefinition(
-    `${baseName}-workers-task`,
-    {
-      family: `${baseName}-workers`,
-      networkMode: "awsvpc",
-      requiresCompatibilities: ["FARGATE"],
-      cpu: config.workerServiceCpu.toString(),
-      memory: config.workerServiceMemory.toString(),
-      executionRoleArn: iamOutputs.ecsTaskExecutionRole.arn,
-      taskRoleArn: iamOutputs.ecsWorkersTaskRole.arn,
-      runtimePlatform: runtimePlatform,
-      containerDefinitions: pulumi
-        .all([
-          rdsOutputs.dbConnectionEndpoint,
-          rdsOutputs.dbCredentialsSecret.arn,
-          redisOutputs.stateEndpoint, // Workers use state cluster for caching/rate limiting
-          redisOutputs.redisAuthSecret.arn,
-          sqsOutputs.pushNotificationQueue.url,
-          sqsOutputs.offlineMessageQueue.url,
-          sqsOutputs.pushNotificationDlq.url,
-          sqsOutputs.offlineMessageDlq.url,
-          currentRegion.name,
-          workersLogGroup.name,
-        ])
-        .apply(
-          ([
-            dbEndpoint,
-            dbSecretArn,
-            redisEndpoint,
-            redisAuthSecretArn,
-            pushQueueUrl,
-            offlineQueueUrl,
-            pushDlqUrl,
-            offlineDlqUrl,
-            region,
-            logGroupName,
-          ]) =>
-            JSON.stringify([
-              {
-                name: "workers",
-                // Use placeholder image - replace with your ECR image
-                image: "node:20-alpine",
-                command: ["sh", "-c", "echo 'Replace with your Workers image' && sleep infinity"],
-                essential: true,
-                // Port mapping for internal health checks (not exposed via ALB)
-                portMappings: [
-                  {
-                    containerPort: 3003,
-                    hostPort: 3003,
-                    protocol: "tcp",
-                  },
-                ],
-                environment: [
-                  { name: "NODE_ENV", value: config.environment },
-                  { name: "SERVICE_NAME", value: "workers" },
-                  // Database
-                  { name: "DATABASE_HOST", value: dbEndpoint.split(":")[0] },
-                  { name: "DATABASE_PORT", value: "5432" },
-                  { name: "DATABASE_NAME", value: "chatdb" },
-                  // Redis (for caching/rate limiting)
-                  { name: "REDIS_HOST", value: redisEndpoint },
-                  { name: "REDIS_PORT", value: "6379" },
-                  { name: "REDIS_TLS", value: "true" },
-                  // SQS Queues
-                  { name: "SQS_PUSH_QUEUE_URL", value: pushQueueUrl },
-                  { name: "SQS_OFFLINE_QUEUE_URL", value: offlineQueueUrl },
-                  { name: "SQS_PUSH_DLQ_URL", value: pushDlqUrl },
-                  { name: "SQS_OFFLINE_DLQ_URL", value: offlineDlqUrl },
-                  // Worker configuration
-                  { name: "WORKER_POLL_INTERVAL_MS", value: "1000" },
-                  { name: "WORKER_BATCH_SIZE", value: "10" },
-                  { name: "WORKER_VISIBILITY_TIMEOUT", value: "60" },
-                  // AWS
-                  { name: "AWS_REGION", value: region },
-                  { name: "LOG_LEVEL", value: config.environment === "prod" ? "info" : "debug" },
-                  // Health check port (workers should expose a simple health endpoint)
-                  { name: "HEALTH_PORT", value: "3003" },
-                ],
-                secrets: [
-                  {
-                    name: "DATABASE_USERNAME",
-                    valueFrom: `${dbSecretArn}:username::`,
-                  },
-                  {
-                    name: "DATABASE_PASSWORD",
-                    valueFrom: `${dbSecretArn}:password::`,
-                  },
-                  {
-                    name: "REDIS_PASSWORD",
-                    valueFrom: redisAuthSecretArn,
-                  },
-                ],
-                logConfiguration: {
-                  logDriver: "awslogs",
-                  options: {
-                    "awslogs-group": logGroupName,
-                    "awslogs-region": region,
-                    "awslogs-stream-prefix": "workers",
-                  },
+  const workersTaskDefinition = new aws.ecs.TaskDefinition(`${baseName}-workers-task`, {
+    family: `${baseName}-workers`,
+    networkMode: "awsvpc",
+    requiresCompatibilities: ["FARGATE"],
+    cpu: config.workerServiceCpu.toString(),
+    memory: config.workerServiceMemory.toString(),
+    executionRoleArn: iamOutputs.ecsTaskExecutionRole.arn,
+    taskRoleArn: iamOutputs.ecsWorkersTaskRole.arn,
+    runtimePlatform: runtimePlatform,
+    containerDefinitions: pulumi
+      .all([
+        rdsOutputs.dbConnectionEndpoint,
+        rdsOutputs.dbCredentialsSecret.arn,
+        redisOutputs.stateEndpoint, // Workers use state cluster for caching/rate limiting
+        redisOutputs.redisAuthSecret.arn,
+        sqsOutputs.pushNotificationQueue.url,
+        sqsOutputs.offlineMessageQueue.url,
+        sqsOutputs.pushNotificationDlq.url,
+        sqsOutputs.offlineMessageDlq.url,
+        currentRegion.name,
+        workersLogGroup.name,
+      ])
+      .apply(
+        ([
+          dbEndpoint,
+          dbSecretArn,
+          redisEndpoint,
+          redisAuthSecretArn,
+          pushQueueUrl,
+          offlineQueueUrl,
+          pushDlqUrl,
+          offlineDlqUrl,
+          region,
+          logGroupName,
+        ]) =>
+          JSON.stringify([
+            {
+              name: "workers",
+              // Use placeholder image - replace with your ECR image
+              image: "node:20-alpine",
+              command: ["sh", "-c", "echo 'Replace with your Workers image' && sleep infinity"],
+              essential: true,
+              // Port mapping for internal health checks (not exposed via ALB)
+              portMappings: [
+                {
+                  containerPort: 3003,
+                  hostPort: 3003,
+                  protocol: "tcp",
                 },
-                // Health check - workers should expose HTTP health endpoint on HEALTH_PORT
-                // The endpoint should verify connectivity to SQS, Redis, and database
-                healthCheck: {
-                  command: ["CMD-SHELL", "wget -q --spider http://localhost:3003/health || exit 1"],
-                  interval: 30,
-                  timeout: 5,
-                  retries: 3,
-                  startPeriod: 60,
+              ],
+              environment: [
+                { name: "NODE_ENV", value: config.environment },
+                { name: "SERVICE_NAME", value: "workers" },
+                // Database
+                { name: "DATABASE_HOST", value: dbEndpoint.split(":")[0] },
+                { name: "DATABASE_PORT", value: "5432" },
+                { name: "DATABASE_NAME", value: "chatdb" },
+                // Redis (for caching/rate limiting)
+                { name: "REDIS_HOST", value: redisEndpoint },
+                { name: "REDIS_PORT", value: "6379" },
+                { name: "REDIS_TLS", value: "true" },
+                // SQS Queues
+                { name: "SQS_PUSH_QUEUE_URL", value: pushQueueUrl },
+                { name: "SQS_OFFLINE_QUEUE_URL", value: offlineQueueUrl },
+                { name: "SQS_PUSH_DLQ_URL", value: pushDlqUrl },
+                { name: "SQS_OFFLINE_DLQ_URL", value: offlineDlqUrl },
+                // Worker configuration
+                { name: "WORKER_POLL_INTERVAL_MS", value: "1000" },
+                { name: "WORKER_BATCH_SIZE", value: "10" },
+                { name: "WORKER_VISIBILITY_TIMEOUT", value: "60" },
+                // AWS
+                { name: "AWS_REGION", value: region },
+                { name: "LOG_LEVEL", value: config.environment === "prod" ? "info" : "debug" },
+                // Health check port (workers should expose a simple health endpoint)
+                { name: "HEALTH_PORT", value: "3003" },
+              ],
+              secrets: [
+                {
+                  name: "DATABASE_USERNAME",
+                  valueFrom: `${dbSecretArn}:username::`,
+                },
+                {
+                  name: "DATABASE_PASSWORD",
+                  valueFrom: `${dbSecretArn}:password::`,
+                },
+                {
+                  name: "REDIS_PASSWORD",
+                  valueFrom: redisAuthSecretArn,
+                },
+              ],
+              logConfiguration: {
+                logDriver: "awslogs",
+                options: {
+                  "awslogs-group": logGroupName,
+                  "awslogs-region": region,
+                  "awslogs-stream-prefix": "workers",
                 },
               },
-            ])
-        ),
-      tags: {
-        ...tags,
-        Name: `${baseName}-workers-task`,
-      },
-    }
-  );
+              // Health check - workers should expose HTTP health endpoint on HEALTH_PORT
+              // The endpoint should verify connectivity to SQS, Redis, and database
+              healthCheck: {
+                command: ["CMD-SHELL", "wget -q --spider http://localhost:3003/health || exit 1"],
+                interval: 30,
+                timeout: 5,
+                retries: 3,
+                startPeriod: 60,
+              },
+            },
+          ]),
+      ),
+    tags: {
+      ...tags,
+      Name: `${baseName}-workers-task`,
+    },
+  });
 
   // ==================== Workers Service ====================
 
@@ -195,9 +192,10 @@ export function createWorkersService(
     networkConfiguration: {
       // Dev: public subnets with public IP (no NAT needed)
       // Prod: private subnets with NAT Gateway
-      subnets: config.environment === "dev"
-        ? vpcOutputs.publicSubnets.map((s) => s.id)
-        : vpcOutputs.privateSubnets.map((s) => s.id),
+      subnets:
+        config.environment === "dev"
+          ? vpcOutputs.publicSubnets.map((s) => s.id)
+          : vpcOutputs.privateSubnets.map((s) => s.id),
       securityGroups: [securityGroupOutputs.ecsWorkersSecurityGroup.id],
       assignPublicIp: config.environment === "dev",
     },
@@ -227,20 +225,17 @@ export function createWorkersService(
 
   // ==================== Auto Scaling ====================
 
-  const workersAutoScaling = new aws.appautoscaling.Target(
-    `${baseName}-workers-autoscaling`,
-    {
-      maxCapacity: config.environment === "prod" ? 10 : 3,
-      minCapacity: config.workerServiceDesiredCount,
-      resourceId: pulumi.interpolate`service/${ecsClusterOutputs.cluster.name}/${workersService.name}`,
-      scalableDimension: "ecs:service:DesiredCount",
-      serviceNamespace: "ecs",
-      tags: {
-        ...tags,
-        Name: `${baseName}-workers-autoscaling`,
-      },
-    }
-  );
+  const workersAutoScaling = new aws.appautoscaling.Target(`${baseName}-workers-autoscaling`, {
+    maxCapacity: config.environment === "prod" ? 10 : 3,
+    minCapacity: config.workerServiceDesiredCount,
+    resourceId: pulumi.interpolate`service/${ecsClusterOutputs.cluster.name}/${workersService.name}`,
+    scalableDimension: "ecs:service:DesiredCount",
+    serviceNamespace: "ecs",
+    tags: {
+      ...tags,
+      Name: `${baseName}-workers-autoscaling`,
+    },
+  });
 
   // Scale based on Push Queue depth
   new aws.appautoscaling.Policy(`${baseName}-workers-push-queue-scaling`, {
@@ -293,40 +288,37 @@ export function createWorkersService(
   });
 
   // Step scaling based on oldest message age (for catching up on backlogs)
-  const scaleOnMessageAge = new aws.appautoscaling.Policy(
-    `${baseName}-workers-message-age-scaling`,
-    {
-      name: `${baseName}-workers-message-age-scaling`,
-      policyType: "StepScaling",
-      resourceId: workersAutoScaling.resourceId,
-      scalableDimension: workersAutoScaling.scalableDimension,
-      serviceNamespace: workersAutoScaling.serviceNamespace,
-      stepScalingPolicyConfiguration: {
-        adjustmentType: "ChangeInCapacity",
-        cooldown: 60,
-        metricAggregationType: "Maximum",
-        stepAdjustments: [
-          {
-            // 0 - threshold: no change
-            metricIntervalLowerBound: "0",
-            metricIntervalUpperBound: String(config.workerScaleOnOldestMessageAge),
-            scalingAdjustment: 0,
-          },
-          {
-            // threshold - 2x threshold: add 1 task
-            metricIntervalLowerBound: String(config.workerScaleOnOldestMessageAge),
-            metricIntervalUpperBound: String(config.workerScaleOnOldestMessageAge * 2),
-            scalingAdjustment: 1,
-          },
-          {
-            // > 2x threshold: add 2 tasks
-            metricIntervalLowerBound: String(config.workerScaleOnOldestMessageAge * 2),
-            scalingAdjustment: 2,
-          },
-        ],
-      },
-    }
-  );
+  const scaleOnMessageAge = new aws.appautoscaling.Policy(`${baseName}-workers-message-age-scaling`, {
+    name: `${baseName}-workers-message-age-scaling`,
+    policyType: "StepScaling",
+    resourceId: workersAutoScaling.resourceId,
+    scalableDimension: workersAutoScaling.scalableDimension,
+    serviceNamespace: workersAutoScaling.serviceNamespace,
+    stepScalingPolicyConfiguration: {
+      adjustmentType: "ChangeInCapacity",
+      cooldown: 60,
+      metricAggregationType: "Maximum",
+      stepAdjustments: [
+        {
+          // 0 - threshold: no change
+          metricIntervalLowerBound: "0",
+          metricIntervalUpperBound: String(config.workerScaleOnOldestMessageAge),
+          scalingAdjustment: 0,
+        },
+        {
+          // threshold - 2x threshold: add 1 task
+          metricIntervalLowerBound: String(config.workerScaleOnOldestMessageAge),
+          metricIntervalUpperBound: String(config.workerScaleOnOldestMessageAge * 2),
+          scalingAdjustment: 1,
+        },
+        {
+          // > 2x threshold: add 2 tasks
+          metricIntervalLowerBound: String(config.workerScaleOnOldestMessageAge * 2),
+          scalingAdjustment: 2,
+        },
+      ],
+    },
+  });
 
   // CloudWatch alarm to trigger step scaling on message age
   new aws.cloudwatch.MetricAlarm(`${baseName}-workers-message-age-alarm`, {

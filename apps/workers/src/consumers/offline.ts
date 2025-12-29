@@ -43,7 +43,7 @@ export function createOfflineConsumer(): Consumer {
             logger.error({ error, messageId: message.MessageId }, "Failed to process offline message");
             throw error; // Re-throw to trigger retry/DLQ
           }
-        })
+        }),
       );
     },
   });
@@ -86,6 +86,6 @@ async function processOfflineMessage(payload: OfflineMessagePayload): Promise<vo
 
   logger.info(
     { messageId: payload.messageId, recipientCount: payload.recipientIds.length },
-    "Offline message would be processed (not implemented)"
+    "Offline message would be processed (not implemented)",
   );
 }

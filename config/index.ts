@@ -2,7 +2,7 @@ import * as pulumi from "@pulumi/pulumi";
 
 /**
  * Configuration interface for the realtime chat infrastructure
- * 
+ *
  * All values are required and must be explicitly set in Pulumi.<stack>.yaml
  * Use one of the pre-configured stacks: dev, 1k-dau, 5k-dau, 10k-dau, 25k-dau, 50k-dau, 100k-dau
  */
@@ -19,7 +19,7 @@ export interface Config {
 
   // VPC
   availabilityZones: string[];
-  natGateways: number;  // 0 for dev (public subnets), 1+ for prod (private subnets)
+  natGateways: number; // 0 for dev (public subnets), 1+ for prod (private subnets)
 
   // ECS - API Service
   apiServiceDesiredCount: number;
@@ -49,7 +49,7 @@ export interface Config {
   workerScaleOnOldestMessageAge: number;
 
   // ECS - Architecture
-  enableGraviton: boolean;  // Use ARM64/Graviton for up to 20% cost savings
+  enableGraviton: boolean; // Use ARM64/Graviton for up to 20% cost savings
 
   // RDS
   rdsInstanceClass: string;
@@ -59,14 +59,14 @@ export interface Config {
   enableRdsProxy: boolean;
   rdsProxyMaxConnectionsPercent: number;
   rdsProxyIdleClientTimeout: number;
-  enableRdsReadReplica: boolean;  // Read replica for read-heavy workloads (100k DAU)
-  rdsReadReplicaInstanceClass?: string;  // Only required when enableRdsReadReplica is true
+  enableRdsReadReplica: boolean; // Read replica for read-heavy workloads (100k DAU)
+  rdsReadReplicaInstanceClass?: string; // Only required when enableRdsReadReplica is true
 
   // ElastiCache Redis
   redisNodeType: string;
   redisNumCacheNodes: number;
   enableRedisSplit: boolean;
-  redisAdapterNodeType?: string;  // Only required when enableRedisSplit is true
+  redisAdapterNodeType?: string; // Only required when enableRedisSplit is true
   redisAdapterReplicas?: number;
   redisStateNodeType?: string;
   redisStateReplicas?: number;
@@ -77,7 +77,7 @@ export interface Config {
   wafSocketRateLimitPer5Min: number;
 
   // ECS Health Check
-  healthCheckGracePeriodSeconds: number;  // Grace period before health checks start
+  healthCheckGracePeriodSeconds: number; // Grace period before health checks start
 
   // Optional
   certificateArn?: string;
@@ -147,7 +147,7 @@ export function loadConfig(): Config {
     rdsProxyMaxConnectionsPercent: config.requireNumber("rdsProxyMaxConnectionsPercent"),
     rdsProxyIdleClientTimeout: config.requireNumber("rdsProxyIdleClientTimeout"),
     enableRdsReadReplica: config.requireBoolean("enableRdsReadReplica"),
-    rdsReadReplicaInstanceClass: config.get("rdsReadReplicaInstanceClass"),  // Only required when enableRdsReadReplica
+    rdsReadReplicaInstanceClass: config.get("rdsReadReplicaInstanceClass"), // Only required when enableRdsReadReplica
 
     // ElastiCache Redis
     redisNodeType: config.require("redisNodeType"),
@@ -189,7 +189,7 @@ export function validateConfig(config: Config): void {
   // Validate NAT gateway count
   if (config.natGateways < 0 || config.natGateways > config.availabilityZones.length) {
     throw new Error(
-      `NAT gateway count (${config.natGateways}) must be between 0 and ${config.availabilityZones.length} (number of AZs).`
+      `NAT gateway count (${config.natGateways}) must be between 0 and ${config.availabilityZones.length} (number of AZs).`,
     );
   }
 
@@ -209,7 +209,10 @@ export function validateConfig(config: Config): void {
     512: [1024, 2048, 3072, 4096],
     1024: [2048, 3072, 4096, 5120, 6144, 7168, 8192],
     2048: [4096, 5120, 6144, 7168, 8192, 9216, 10240, 11264, 12288, 13312, 14336, 15360, 16384],
-    4096: [8192, 9216, 10240, 11264, 12288, 13312, 14336, 15360, 16384, 17408, 18432, 19456, 20480, 21504, 22528, 23552, 24576, 25600, 26624, 27648, 28672, 29696, 30720],
+    4096: [
+      8192, 9216, 10240, 11264, 12288, 13312, 14336, 15360, 16384, 17408, 18432, 19456, 20480, 21504, 22528, 23552,
+      24576, 25600, 26624, 27648, 28672, 29696, 30720,
+    ],
     8192: [16384, 20480, 24576, 28672, 32768, 36864, 40960, 45056, 49152, 53248, 57344, 61440],
     16384: [32768, 40960, 49152, 57344, 65536, 73728, 81920, 90112, 98304, 106496, 114688, 122880],
   };
@@ -218,12 +221,12 @@ export function validateConfig(config: Config): void {
     const validMemoryValues = validFargateCombinations[cpu];
     if (!validMemoryValues) {
       throw new Error(
-        `${serviceName}: Invalid CPU value ${cpu}. Valid values: ${Object.keys(validFargateCombinations).join(", ")}`
+        `${serviceName}: Invalid CPU value ${cpu}. Valid values: ${Object.keys(validFargateCombinations).join(", ")}`,
       );
     }
     if (!validMemoryValues.includes(memory)) {
       throw new Error(
-        `${serviceName}: Invalid memory ${memory} for CPU ${cpu}. Valid memory values: ${validMemoryValues.join(", ")}`
+        `${serviceName}: Invalid memory ${memory} for CPU ${cpu}. Valid memory values: ${validMemoryValues.join(", ")}`,
       );
     }
   };
@@ -234,29 +237,39 @@ export function validateConfig(config: Config): void {
 
   // Validate RDS instance class format
   if (!config.rdsInstanceClass.startsWith("db.")) {
-    throw new Error(`Invalid RDS instance class "${config.rdsInstanceClass}". Must start with "db." (e.g., "db.t3.micro").`);
+    throw new Error(
+      `Invalid RDS instance class "${config.rdsInstanceClass}". Must start with "db." (e.g., "db.t3.micro").`,
+    );
   }
 
   // Validate RDS read replica configuration
   if (config.enableRdsReadReplica) {
     if (!config.rdsReadReplicaInstanceClass || !config.rdsReadReplicaInstanceClass.startsWith("db.")) {
-      throw new Error(`Invalid RDS read replica instance class "${config.rdsReadReplicaInstanceClass}". Must start with "db." and be provided when enableRdsReadReplica is true.`);
+      throw new Error(
+        `Invalid RDS read replica instance class "${config.rdsReadReplicaInstanceClass}". Must start with "db." and be provided when enableRdsReadReplica is true.`,
+      );
     }
   }
 
   // Validate PostgreSQL version format (major.minor)
   const pgVersionMatch = config.rdsEngineVersion.match(/^(\d+)\.(\d+)$/);
   if (!pgVersionMatch) {
-    throw new Error(`Invalid PostgreSQL version "${config.rdsEngineVersion}". Must be in format "major.minor" (e.g., "15.4", "16.1").`);
+    throw new Error(
+      `Invalid PostgreSQL version "${config.rdsEngineVersion}". Must be in format "major.minor" (e.g., "15.4", "16.1").`,
+    );
   }
   const pgMajorVersion = parseInt(pgVersionMatch[1], 10);
   if (pgMajorVersion < 13 || pgMajorVersion > 17) {
-    throw new Error(`PostgreSQL version ${pgMajorVersion} is not supported. Supported major versions: 13, 14, 15, 16, 17.`);
+    throw new Error(
+      `PostgreSQL version ${pgMajorVersion} is not supported. Supported major versions: 13, 14, 15, 16, 17.`,
+    );
   }
 
   // Validate Redis node type format
   if (!config.redisNodeType.startsWith("cache.")) {
-    throw new Error(`Invalid Redis node type "${config.redisNodeType}". Must start with "cache." (e.g., "cache.t3.micro").`);
+    throw new Error(
+      `Invalid Redis node type "${config.redisNodeType}". Must start with "cache." (e.g., "cache.t3.micro").`,
+    );
   }
 
   // Validate Redis cluster ID length (AWS limit is 20 characters)
@@ -266,7 +279,7 @@ export function validateConfig(config: Config): void {
   if (longestRedisId.length > 20) {
     throw new Error(
       `Redis cluster ID "${longestRedisId}" exceeds 20 character AWS limit. ` +
-      `Shorten your project name or environment. Current length: ${longestRedisId.length}`
+        `Shorten your project name or environment. Current length: ${longestRedisId.length}`,
     );
   }
 
@@ -333,10 +346,7 @@ export function validateConfig(config: Config): void {
 /**
  * Common tags for all resources
  */
-export function getTags(
-  config: Config,
-  additionalTags?: Record<string, string>
-): Record<string, string> {
+export function getTags(config: Config, additionalTags?: Record<string, string>): Record<string, string> {
   return {
     Project: config.projectName,
     Environment: config.environment,

@@ -13,7 +13,7 @@ export interface SqsOutputs {
  * Creates SQS queues for:
  * - Push notifications (with DLQ)
  * - Offline message fanout (with DLQ)
- * 
+ *
  * All queues have:
  * - Server-side encryption
  * - Dead letter queues for failed messages
