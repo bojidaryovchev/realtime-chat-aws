@@ -9,27 +9,27 @@
 encryptionsalt: v1:CHANGE_ME_ON_FIRST_RUN:v1
 config:
   aws:region: eu-central-1
-  
+
   # ==================== General ====================
   realtime-chat-aws:environment: prod
   realtime-chat-aws:domainName: "your-domain.com"
   realtime-chat-aws:hostedZoneId: "YOUR_HOSTED_ZONE_ID"
-  
+
   # ==================== Auth0 ====================
   realtime-chat-aws:auth0Domain: "your-tenant.auth0.com"
   realtime-chat-aws:auth0Audience: "https://api.your-domain.com"
-  
+
   # ==================== VPC ====================
   realtime-chat-aws:availabilityZones: '["eu-central-1a", "eu-central-1b"]'
   realtime-chat-aws:natGateways: "2"
-  
+
   # ==================== ECS - API Service ====================
   realtime-chat-aws:apiServiceDesiredCount: "2"
   realtime-chat-aws:apiServiceCpu: "512"
   realtime-chat-aws:apiServiceMemory: "1024"
   realtime-chat-aws:apiDeregistrationDelaySeconds: "30"
   realtime-chat-aws:apiStopTimeoutSeconds: "30"
-  
+
   # ==================== ECS - Realtime Service ====================
   realtime-chat-aws:realtimeServiceDesiredCount: "3"
   realtime-chat-aws:realtimeServiceCpu: "1024"
@@ -42,17 +42,17 @@ config:
   realtime-chat-aws:realtimeMinHealthyPercent: "50"
   realtime-chat-aws:realtimeMaxPercent: "200"
   realtime-chat-aws:realtimeStickyDurationSeconds: "3600"
-  
+
   # ==================== ECS - Workers Service ====================
   realtime-chat-aws:workerServiceDesiredCount: "2"
   realtime-chat-aws:workerServiceCpu: "256"
   realtime-chat-aws:workerServiceMemory: "512"
   realtime-chat-aws:workerScaleOnQueueDepth: "100"
   realtime-chat-aws:workerScaleOnOldestMessageAge: "300"
-  
+
   # ==================== ECS - Architecture ====================
   realtime-chat-aws:enableGraviton: "false"
-  
+
   # ==================== RDS ====================
   realtime-chat-aws:rdsInstanceClass: "db.t3.large"
   realtime-chat-aws:rdsAllocatedStorage: "100"
@@ -62,20 +62,19 @@ config:
   realtime-chat-aws:rdsProxyIdleClientTimeout: "1800"
   realtime-chat-aws:enableRdsReadReplica: "false"
   realtime-chat-aws:rdsReadReplicaInstanceClass: "db.t3.large"
-  
+
   # ==================== Redis ====================
   # t3.medium: 3.09GB RAM, ~$25/mo - sufficient for ~7.5k concurrent connections
   # r6g (memory-optimized) is overkill - pub/sub and sessions use minimal memory
   realtime-chat-aws:redisNodeType: "cache.t3.medium"
-  realtime-chat-aws:redisNumCacheNodes: "2"  # Primary + replica for HA
+  realtime-chat-aws:redisNumCacheNodes: "2" # Primary + replica for HA
   realtime-chat-aws:enableRedisSplit: "false"
   realtime-chat-aws:redisAdapterNodeType: "cache.t3.medium"
   realtime-chat-aws:redisAdapterReplicas: "1"
   realtime-chat-aws:redisStateNodeType: "cache.t3.small"
   realtime-chat-aws:redisStateReplicas: "1"
-  
+
   # ==================== WAF ====================
   realtime-chat-aws:enableWaf: "true"
   realtime-chat-aws:wafApiRateLimitPer5Min: "5000"
   realtime-chat-aws:wafSocketRateLimitPer5Min: "15000"
-

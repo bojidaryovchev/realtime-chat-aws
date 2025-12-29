@@ -20,15 +20,15 @@ pulumi up
 
 ## Available Stacks
 
-| Stack | DAU | Concurrent Connections | Est. Cost | Use Case |
-|-------|-----|------------------------|-----------|----------|
-| `dev` | - | ~50-100 | **$50-80/mo** | Development, testing, CI/CD |
-| `1k-dau` | 1,000 | ~100-300 | **$150-200/mo** | MVP launch, beta testing |
-| `5k-dau` | 5,000 | ~500-1,500 | **$250-350/mo** | Post-launch growth |
-| `10k-dau` | 10,000 | ~1k-3k | **$350-500/mo** | Series A startups |
-| `25k-dau` | 25,000 | ~2.5k-7.5k | **$500-700/mo** | Series A/B startups |
-| `50k-dau` | 50,000 | ~5k-15k | **$800-1,100/mo** | Series B+ / Enterprise |
-| `100k-dau` | 100,000 | ~10k-30k | **$1,200-1,500/mo** | Large scale production |
+| Stack      | DAU     | Concurrent Connections | Est. Cost           | Use Case                    |
+| ---------- | ------- | ---------------------- | ------------------- | --------------------------- |
+| `dev`      | -       | ~50-100                | **$50-80/mo**       | Development, testing, CI/CD |
+| `1k-dau`   | 1,000   | ~100-300               | **$150-200/mo**     | MVP launch, beta testing    |
+| `5k-dau`   | 5,000   | ~500-1,500             | **$250-350/mo**     | Post-launch growth          |
+| `10k-dau`  | 10,000  | ~1k-3k                 | **$350-500/mo**     | Series A startups           |
+| `25k-dau`  | 25,000  | ~2.5k-7.5k             | **$500-700/mo**     | Series A/B startups         |
+| `50k-dau`  | 50,000  | ~5k-15k                | **$800-1,100/mo**   | Series B+ / Enterprise      |
+| `100k-dau` | 100,000 | ~10k-30k               | **$1,200-1,500/mo** | Large scale production      |
 
 ### 💡 Key Cost Savings
 
@@ -57,7 +57,7 @@ pulumi up
 │    /api/*  →  API Target Group       /socket.io/*  →  Realtime TG      │
 │    • 300s idle timeout (WebSocket)    • Sticky sessions (3600s)        │
 └─────────────────────────────────────────────────────────────────────────┘
-              │                          │                    
+              │                          │
   ┌───────────┴───────────┐  ┌───────────┴───────────┐  ┌─────────────────┐
   │   ECS Fargate (API)   │  │ ECS Fargate (Realtime)│  │ ECS (Workers)*  │
   │   • Node.js/Fastify   │  │   • Socket.IO         │  │ • SQS Consumer  │
@@ -80,26 +80,26 @@ pulumi up
 
 ### Network Architecture
 
-| Environment | Subnet Type | Internet Access | Cost |
-|-------------|-------------|-----------------|------|
-| **Dev** | Public subnets | Direct (public IP) | $0 |
-| **Prod** | Private subnets | Via NAT Gateway | ~$35/mo per NAT |
+| Environment | Subnet Type     | Internet Access    | Cost            |
+| ----------- | --------------- | ------------------ | --------------- |
+| **Dev**     | Public subnets  | Direct (public IP) | $0              |
+| **Prod**    | Private subnets | Via NAT Gateway    | ~$35/mo per NAT |
 
 ## Stack Comparison
 
 ### Infrastructure Features by Stack
 
-| Feature | dev | 1k | 5k | 10k | 25k | 50k | 100k |
-|---------|-----|----|----|-----|-----|-----|------|
-| **NAT Gateways** | 0 | 1 | 1 | 2 | 2 | 2 | 3 |
-| **Availability Zones** | 2 | 2 | 2 | 2 | 2 | 3 | 3 |
-| **WAF Protection** | ❌ | ❌ | ✅ | ✅ | ✅ | ✅ | ✅ |
-| **RDS Proxy** | ❌ | ❌ | ❌ | ✅ | ✅ | ✅ | ✅ |
-| **RDS Multi-AZ** | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ | ✅ |
-| **RDS Read Replica** | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ |
-| **Redis Split** | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ |
-| **Graviton (ARM64)** | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ |
-| **Auto-Scaling** | Basic | Basic | Basic | ✅ Full | ✅ Full | ✅ Full | ✅ Full |
+| Feature                | dev   | 1k    | 5k    | 10k     | 25k     | 50k     | 100k    |
+| ---------------------- | ----- | ----- | ----- | ------- | ------- | ------- | ------- |
+| **NAT Gateways**       | 0     | 1     | 1     | 2       | 2       | 2       | 3       |
+| **Availability Zones** | 2     | 2     | 2     | 2       | 2       | 3       | 3       |
+| **WAF Protection**     | ❌    | ❌    | ✅    | ✅      | ✅      | ✅      | ✅      |
+| **RDS Proxy**          | ❌    | ❌    | ❌    | ✅      | ✅      | ✅      | ✅      |
+| **RDS Multi-AZ**       | ❌    | ❌    | ❌    | ❌      | ❌      | ✅      | ✅      |
+| **RDS Read Replica**   | ❌    | ❌    | ❌    | ❌      | ❌      | ❌      | ✅      |
+| **Redis Split**        | ❌    | ❌    | ❌    | ❌      | ❌      | ❌      | ✅      |
+| **Graviton (ARM64)**   | ❌    | ❌    | ❌    | ❌      | ❌      | ❌      | ✅      |
+| **Auto-Scaling**       | Basic | Basic | Basic | ✅ Full | ✅ Full | ✅ Full | ✅ Full |
 
 > **Auto-Scaling Note:** "Basic" = CPU/memory-based scaling only. "Full" = Includes custom metrics scaling (ActiveConnections, EventLoopLagMs) for realtime service and SQS queue depth scaling for workers.
 >
@@ -107,19 +107,19 @@ pulumi up
 
 ### Compute Resources by Stack
 
-| Service | dev | 1k | 5k | 10k | 25k | 50k | 100k |
-|---------|-----|----|----|-----|-----|-----|------|
-| **API** | 1×256/512 | 1×256/512 | 2×256/512 | 2×512/1024 | 2×512/1024 | 3×512/1024 | 4×1024/2048 |
+| Service      | dev       | 1k         | 5k         | 10k        | 25k         | 50k         | 100k        |
+| ------------ | --------- | ---------- | ---------- | ---------- | ----------- | ----------- | ----------- |
+| **API**      | 1×256/512 | 1×256/512  | 2×256/512  | 2×512/1024 | 2×512/1024  | 3×512/1024  | 4×1024/2048 |
 | **Realtime** | 1×256/512 | 1×512/1024 | 2×512/1024 | 2×512/1024 | 3×1024/2048 | 4×1024/2048 | 6×1024/2048 |
-| **Workers** | 1×256/512 | 1×256/512 | 1×256/512 | 1×256/512 | 2×256/512 | 2×512/1024 | 3×512/1024 |
+| **Workers**  | 1×256/512 | 1×256/512  | 1×256/512  | 1×256/512  | 2×256/512   | 2×512/1024  | 3×512/1024  |
 
 ### Database & Cache by Stack
 
-| Resource | dev | 1k | 5k | 10k | 25k | 50k | 100k |
-|----------|-----|----|----|-----|-----|-----|------|
-| **RDS** | t3.micro | t3.small | t3.small | t3.medium | t3.large | r6g.large | r6g.xlarge |
-| **RDS Storage** | 20GB | 20GB | 30GB | 50GB | 100GB | 150GB | 200GB |
-| **Redis** | t3.micro×1 | t3.small×1 | t3.medium×1 | t3.medium×2 | t3.medium×2 | t3.large×2 | m6g Split |
+| Resource        | dev        | 1k         | 5k          | 10k         | 25k         | 50k        | 100k       |
+| --------------- | ---------- | ---------- | ----------- | ----------- | ----------- | ---------- | ---------- |
+| **RDS**         | t3.micro   | t3.small   | t3.small    | t3.medium   | t3.large    | r6g.large  | r6g.xlarge |
+| **RDS Storage** | 20GB       | 20GB       | 30GB        | 50GB        | 100GB       | 150GB      | 200GB      |
+| **Redis**       | t3.micro×1 | t3.small×1 | t3.medium×1 | t3.medium×2 | t3.medium×2 | t3.large×2 | m6g Split  |
 
 ## Prerequisites
 
@@ -151,16 +151,18 @@ Each Pulumi stack YAML file contains an `encryptionsalt` that is used to encrypt
 
 ```yaml
 # Example: Pulumi.dev.yaml
-encryptionsalt: v1:abc123xyz...  # Don't modify this!
+encryptionsalt: v1:abc123xyz... # Don't modify this!
 config:
   realtime-chat-aws:domainName: "example.com"
 ```
 
 If you're using the pre-configured stack files (e.g., copying `Pulumi.10k-dau.yaml`), you should either:
+
 1. **Create a new stack**: `pulumi stack init my-stack` (generates new salt automatically)
 2. **Or regenerate the salt**: Delete the `encryptionsalt` line and run `pulumi config set` on any value
 
 To set secrets that will be encrypted with this salt:
+
 ```bash
 # Secrets are encrypted with the stack's encryptionsalt
 pulumi config set --secret auth0ClientSecret "your-secret-value"
@@ -175,7 +177,7 @@ config:
   # Your domain
   realtime-chat-aws:domainName: "your-domain.com"
   realtime-chat-aws:hostedZoneId: "YOUR_HOSTED_ZONE_ID"
-  
+
   # Auth0 configuration
   realtime-chat-aws:auth0Domain: "your-tenant.auth0.com"
   realtime-chat-aws:auth0Audience: "https://api.your-domain.com"
@@ -200,22 +202,23 @@ All configuration values are **required** and must be explicitly set in the stac
 
 ### General
 
-| Config Key | Description |
-|------------|-------------|
-| `environment` | Environment name (`dev` or `prod`) |
-| `domainName` | Your domain (e.g., `chat.example.com`) |
-| `hostedZoneId` | Route53 hosted zone ID |
-| `auth0Domain` | Auth0 tenant domain |
-| `auth0Audience` | Auth0 API identifier |
+| Config Key      | Description                            |
+| --------------- | -------------------------------------- |
+| `environment`   | Environment name (`dev` or `prod`)     |
+| `domainName`    | Your domain (e.g., `chat.example.com`) |
+| `hostedZoneId`  | Route53 hosted zone ID                 |
+| `auth0Domain`   | Auth0 tenant domain                    |
+| `auth0Audience` | Auth0 API identifier                   |
 
 ### VPC
 
-| Config Key | Description |
-|------------|-------------|
-| `availabilityZones` | JSON array of AZs |
-| `natGateways` | Number of NAT gateways (0 for dev, 1-3 for prod) |
+| Config Key          | Description                                      |
+| ------------------- | ------------------------------------------------ |
+| `availabilityZones` | JSON array of AZs                                |
+| `natGateways`       | Number of NAT gateways (0 for dev, 1-3 for prod) |
 
 > **Note:** VPC CIDR is fixed at `10.0.0.0/16` - subnet calculations depend on this structure.
+>
 > - Public subnets: `10.0.0.0/24`, `10.0.1.0/24`, `10.0.2.0/24`
 > - Private subnets: `10.0.100.0/24`, `10.0.101.0/24`, `10.0.102.0/24`
 >
@@ -226,81 +229,81 @@ All configuration values are **required** and must be explicitly set in the stac
 
 #### API Service
 
-| Config Key | Description |
-|------------|-------------|
-| `apiServiceDesiredCount` | API service task count |
-| `apiServiceCpu` | API CPU units (256, 512, 1024, etc.) |
-| `apiServiceMemory` | API memory MB (512, 1024, 2048, etc.) |
+| Config Key                      | Description                                    |
+| ------------------------------- | ---------------------------------------------- |
+| `apiServiceDesiredCount`        | API service task count                         |
+| `apiServiceCpu`                 | API CPU units (256, 512, 1024, etc.)           |
+| `apiServiceMemory`              | API memory MB (512, 1024, 2048, etc.)          |
 | `apiDeregistrationDelaySeconds` | ALB deregistration delay for graceful shutdown |
-| `apiStopTimeoutSeconds` | Container stop timeout for SIGTERM handling |
+| `apiStopTimeoutSeconds`         | Container stop timeout for SIGTERM handling    |
 
 #### Realtime Service
 
-| Config Key | Description |
-|------------|-------------|
-| `realtimeServiceDesiredCount` | Realtime service task count |
-| `realtimeServiceCpu` | Realtime CPU units |
-| `realtimeServiceMemory` | Realtime memory MB |
-| `realtimeMaxConnectionsPerTask` | Max WebSocket connections per task (for scaling) |
-| `realtimeScaleOnEventLoopLagMs` | Event loop lag threshold (ms) for scale-out |
-| `realtimeScaleOnConnections` | Enable connection-based auto-scaling |
-| `realtimeDeregistrationDelaySeconds` | ALB deregistration delay for WebSocket draining |
-| `realtimeStopTimeoutSeconds` | Container stop timeout for connection migration |
-| `realtimeMinHealthyPercent` | Min healthy percent during deployments |
-| `realtimeMaxPercent` | Max percent during rolling deployments |
-| `realtimeStickyDurationSeconds` | ALB sticky session duration for Socket.IO polling |
+| Config Key                           | Description                                       |
+| ------------------------------------ | ------------------------------------------------- |
+| `realtimeServiceDesiredCount`        | Realtime service task count                       |
+| `realtimeServiceCpu`                 | Realtime CPU units                                |
+| `realtimeServiceMemory`              | Realtime memory MB                                |
+| `realtimeMaxConnectionsPerTask`      | Max WebSocket connections per task (for scaling)  |
+| `realtimeScaleOnEventLoopLagMs`      | Event loop lag threshold (ms) for scale-out       |
+| `realtimeScaleOnConnections`         | Enable connection-based auto-scaling              |
+| `realtimeDeregistrationDelaySeconds` | ALB deregistration delay for WebSocket draining   |
+| `realtimeStopTimeoutSeconds`         | Container stop timeout for connection migration   |
+| `realtimeMinHealthyPercent`          | Min healthy percent during deployments            |
+| `realtimeMaxPercent`                 | Max percent during rolling deployments            |
+| `realtimeStickyDurationSeconds`      | ALB sticky session duration for Socket.IO polling |
 
 #### Workers Service
 
-| Config Key | Description |
-|------------|-------------|
-| `workerServiceDesiredCount` | Workers service task count |
-| `workerServiceCpu` | Workers CPU units |
-| `workerServiceMemory` | Workers memory MB |
-| `workerScaleOnQueueDepth` | Target SQS queue depth per worker for scaling |
+| Config Key                      | Description                                      |
+| ------------------------------- | ------------------------------------------------ |
+| `workerServiceDesiredCount`     | Workers service task count                       |
+| `workerServiceCpu`              | Workers CPU units                                |
+| `workerServiceMemory`           | Workers memory MB                                |
+| `workerScaleOnQueueDepth`       | Target SQS queue depth per worker for scaling    |
 | `workerScaleOnOldestMessageAge` | Message age threshold (seconds) for step scaling |
 
 #### Architecture
 
-| Config Key | Description |
-|------------|-------------|
-| `enableGraviton` | Use ARM64 (Graviton) for ECS tasks (~20% cost savings) |
+| Config Key                      | Description                                            |
+| ------------------------------- | ------------------------------------------------------ |
+| `enableGraviton`                | Use ARM64 (Graviton) for ECS tasks (~20% cost savings) |
 | `healthCheckGracePeriodSeconds` | Grace period before health checks start (default: 60s) |
 
 ### RDS
 
-| Config Key | Description |
-|------------|-------------|
-| `rdsInstanceClass` | Instance type (e.g., `db.t3.small`) |
-| `rdsAllocatedStorage` | Storage in GB |
-| `rdsEngineVersion` | PostgreSQL version (e.g., `15.4`, `16.1`). Supported: **13, 14, 15, 16, 17**. Default: `16.1` |
-| `rdsMultiAz` | Enable Multi-AZ deployment |
-| `enableRdsProxy` | Enable RDS Proxy for connection pooling |
-| `rdsProxyMaxConnectionsPercent` | Max connections percent for RDS Proxy pool |
-| `rdsProxyIdleClientTimeout` | Idle client timeout (seconds) for proxy connections |
-| `enableRdsReadReplica` | Enable RDS Read Replica for read scaling (100k DAU) |
-| `rdsReadReplicaInstanceClass` | Read replica instance type (only required when `enableRdsReadReplica: true`) |
+| Config Key                      | Description                                                                                   |
+| ------------------------------- | --------------------------------------------------------------------------------------------- |
+| `rdsInstanceClass`              | Instance type (e.g., `db.t3.small`)                                                           |
+| `rdsAllocatedStorage`           | Storage in GB                                                                                 |
+| `rdsEngineVersion`              | PostgreSQL version (e.g., `15.4`, `16.1`). Supported: **13, 14, 15, 16, 17**. Default: `16.1` |
+| `rdsMultiAz`                    | Enable Multi-AZ deployment                                                                    |
+| `enableRdsProxy`                | Enable RDS Proxy for connection pooling                                                       |
+| `rdsProxyMaxConnectionsPercent` | Max connections percent for RDS Proxy pool                                                    |
+| `rdsProxyIdleClientTimeout`     | Idle client timeout (seconds) for proxy connections                                           |
+| `enableRdsReadReplica`          | Enable RDS Read Replica for read scaling (100k DAU)                                           |
+| `rdsReadReplicaInstanceClass`   | Read replica instance type (only required when `enableRdsReadReplica: true`)                  |
 
 ### Redis
 
-| Config Key | Description |
-|------------|-------------|
-| `redisNodeType` | Node type (e.g., `cache.t3.small`) |
-| `redisNumCacheNodes` | Number of cache nodes |
-| `enableRedisSplit` | Split into adapter/state clusters |
+| Config Key             | Description                                                             |
+| ---------------------- | ----------------------------------------------------------------------- |
+| `redisNodeType`        | Node type (e.g., `cache.t3.small`)                                      |
+| `redisNumCacheNodes`   | Number of cache nodes                                                   |
+| `enableRedisSplit`     | Split into adapter/state clusters                                       |
 | `redisAdapterNodeType` | Adapter cluster node type (only required when `enableRedisSplit: true`) |
-| `redisAdapterReplicas` | Number of replicas for adapter cluster (only required when split) |
-| `redisStateNodeType` | State cluster node type (only required when split) |
-| `redisStateReplicas` | Number of replicas for state cluster (only required when split) |
+| `redisAdapterReplicas` | Number of replicas for adapter cluster (only required when split)       |
+| `redisStateNodeType`   | State cluster node type (only required when split)                      |
+| `redisStateReplicas`   | Number of replicas for state cluster (only required when split)         |
 
 > **Note:** Redis cluster IDs have a 20-character AWS limit. The infrastructure uses the format `${projectName}-${environment}-redis-adapter` for the longest ID. Ensure your project name and environment are short enough to stay within this limit.
 
 ### Security
 
-| Config Key | Description |
-|------------|-------------|
-| `enableWaf` | Enable AWS WAF |
-| `wafApiRateLimitPer5Min` | API rate limit per 5 minutes |
+| Config Key                  | Description                        |
+| --------------------------- | ---------------------------------- |
+| `enableWaf`                 | Enable AWS WAF                     |
+| `wafApiRateLimitPer5Min`    | API rate limit per 5 minutes       |
 | `wafSocketRateLimitPer5Min` | Socket.IO rate limit per 5 minutes |
 
 ## Project Structure
@@ -351,6 +354,7 @@ realtime-chat-aws/
 ## Features
 
 ### Infrastructure
+
 - **VPC** with public/private subnets across multiple AZs
 - **Dev: Public subnets** with public IPs for ECS (no NAT costs)
 - **Prod: Private subnets** with NAT Gateway for security
@@ -359,6 +363,7 @@ realtime-chat-aws/
 - **VPC Flow Logs** to CloudWatch for network traffic analysis
 
 ### Load Balancing
+
 - **ALB** with HTTPS (ACM certificate with DNS validation)
 - **Path-based routing**: `/api/*`, `/socket.io/*`, `/ws/*`
 - **WebSocket support** with 300s idle timeout
@@ -368,6 +373,7 @@ realtime-chat-aws/
 - **Health check grace period** configurable per service
 
 ### Security
+
 - **AWS WAF** (5k+ DAU stacks) with managed rules, bot control, and rate limiting
   - Note: Bot Control rule set costs ~$10/mo + $1/million requests (COMMON inspection level)
 - **Security groups** with least-privilege access:
@@ -385,6 +391,7 @@ realtime-chat-aws/
 - **ECS Exec** enabled for debugging (see [Security Note](#ecs-exec-security) below)
 
 ### Compute
+
 - **ECS Fargate** with FARGATE/FARGATE_SPOT capacity providers
 - **Three services**: API, Realtime, Workers
 - **Container Insights** enabled
@@ -396,6 +403,7 @@ realtime-chat-aws/
 - **Graceful shutdown** with configurable stop timeouts
 
 ### Database
+
 - **RDS PostgreSQL 16** with optional Multi-AZ
 - **RDS Proxy** for connection pooling (10k+ DAU)
 - **Optimized parameter group** for chat workloads
@@ -408,6 +416,7 @@ realtime-chat-aws/
   - Centralized backup vault with encryption
 
 ### Cache
+
 - **ElastiCache Redis 7** with optional cluster split (50k+ DAU):
   - **Adapter cluster**: High throughput pub/sub for Socket.IO
   - **State cluster**: Presence, sessions, rate limits
@@ -415,17 +424,20 @@ realtime-chat-aws/
 - **Automatic failover** with Multi-AZ
 
 ### Messaging
+
 - **SQS queues** for push notifications and offline messages
 - **Dead letter queues** for failed messages
 - **Server-side encryption**
 
 ### Observability
+
 - **CloudWatch Dashboard** with comprehensive metrics
 - **20+ CloudWatch Alarms** for ECS, RDS, Redis, SQS, ALB
 - **SNS Topic** for alert notifications
 - **Operational Runbook** (`docs/runbook.md`) with incident response procedures
 
 ### DevOps
+
 - **CI/CD Pipeline** example (`.github/workflows/deploy.yml`)
 - **Multi-arch Docker builds** support (AMD64 + ARM64)
 - **Automated health checks** with rollback capability
@@ -435,6 +447,7 @@ realtime-chat-aws/
 **Why no CloudFront?** CloudFront does not support WebSocket connections. For realtime chat applications using Socket.IO/WebSockets, ALB is the correct choice.
 
 **Frontend Architecture:**
+
 - **Web**: Hosted on Vercel at your root domain (e.g., `chat.example.com`)
 - **Mobile**: Expo app distributed via App Store / Google Play
 - **API + WebSocket**: This infrastructure at `api.chat.example.com`
@@ -444,6 +457,7 @@ Vercel manages the DNS for your root domain. This infrastructure creates only th
 **Service-to-Service Communication**: Currently, all services are internet-facing through the ALB. If you need internal service-to-service calls (e.g., API → Realtime for targeted notifications), consider:
 
 1. **ECS Service Connect** (recommended): AWS-managed service mesh with automatic service discovery, load balancing, and observability. Add to your ECS services:
+
    ```typescript
    serviceConnectConfiguration: {
      enabled: true,
@@ -570,16 +584,16 @@ aws logs tail /ecs/realtime-chat-dev/api --follow
 ### Socket.IO with Redis Adapter
 
 ```typescript
-import { Server } from 'socket.io';
-import { createAdapter } from '@socket.io/redis-adapter';
-import { Redis } from 'ioredis';
+import { Server } from "socket.io";
+import { createAdapter } from "@socket.io/redis-adapter";
+import { Redis } from "ioredis";
 
 // Adapter Redis for pub/sub
 const adapterRedis = new Redis({
   host: process.env.REDIS_ADAPTER_HOST,
   port: 6379,
   password: process.env.REDIS_PASSWORD,
-  tls: { rejectUnauthorized: false }
+  tls: { rejectUnauthorized: false },
 });
 
 // State Redis for presence/sessions (separate in 50k+ stacks)
@@ -587,16 +601,16 @@ const stateRedis = new Redis({
   host: process.env.REDIS_STATE_HOST,
   port: 6379,
   password: process.env.REDIS_PASSWORD,
-  tls: { rejectUnauthorized: false }
+  tls: { rejectUnauthorized: false },
 });
 
 // Configure CORS for Vercel web frontend and Expo mobile app
 const io = new Server(server, {
   cors: {
     origin: [
-      process.env.WEB_URL,           // Vercel: https://chat.example.com
-      'exp://*',                      // Expo development
-      'https://*.expo.dev',           // Expo preview
+      process.env.WEB_URL, // Vercel: https://chat.example.com
+      "exp://*", // Expo development
+      "https://*.expo.dev", // Expo preview
     ],
     credentials: true,
   },
@@ -608,7 +622,7 @@ io.adapter(createAdapter(adapterRedis, adapterRedis.duplicate()));
 ### Custom Metrics for Auto-Scaling
 
 ```typescript
-import { CloudWatch } from '@aws-sdk/client-cloudwatch';
+import { CloudWatch } from "@aws-sdk/client-cloudwatch";
 
 const cloudwatch = new CloudWatch({ region: process.env.AWS_REGION });
 
@@ -616,8 +630,8 @@ setInterval(async () => {
   await cloudwatch.putMetricData({
     Namespace: process.env.METRICS_NAMESPACE,
     MetricData: [
-      { MetricName: 'ActiveConnections', Value: io.engine.clientsCount },
-      { MetricName: 'EventLoopLagMs', Value: getEventLoopLag() },
+      { MetricName: "ActiveConnections", Value: io.engine.clientsCount },
+      { MetricName: "EventLoopLagMs", Value: getEventLoopLag() },
     ],
   });
 }, 60000);
@@ -626,8 +640,8 @@ setInterval(async () => {
 ### Graceful Shutdown
 
 ```typescript
-process.on('SIGTERM', async () => {
-  io.engine.close();  // Stop accepting connections
+process.on("SIGTERM", async () => {
+  io.engine.close(); // Stop accepting connections
   await redis.quit(); // Cleanup
   process.exit(0);
 });
@@ -635,18 +649,19 @@ process.on('SIGTERM', async () => {
 
 ## Scaling Strategy
 
-| Metric | Threshold | Action |
-|--------|-----------|--------|
-| ActiveConnections/Task | > 3,000 | Scale out |
-| EventLoopLagMs (p95) | > 100ms for 3 min | Scale out |
-| CPU | > 60% | Scale out |
-| Memory | > 70% | Scale out |
+| Metric                 | Threshold         | Action    |
+| ---------------------- | ----------------- | --------- |
+| ActiveConnections/Task | > 3,000           | Scale out |
+| EventLoopLagMs (p95)   | > 100ms for 3 min | Scale out |
+| CPU                    | > 60%             | Scale out |
+| Memory                 | > 70%             | Scale out |
 
 > ⚠️ **Reality Check**: Real-world chat apps typically achieve **1k-5k connections per task** depending on message rate and features, not the 10k+ you see in synthetic benchmarks.
 
 ## Cost Breakdown
 
 ### Dev (~$50-80/month)
+
 - ALB: ~$18
 - **NAT Gateway: $0** (uses public subnets)
 - ECS Fargate (3 minimal tasks): ~$15
@@ -658,6 +673,7 @@ process.on('SIGTERM', async () => {
 - CloudWatch + misc: ~$5-15
 
 ### 1k DAU (~$150-200/month)
+
 - ALB: ~$20
 - NAT Gateway (1): ~$35
 - ECS Fargate (3 small tasks): ~$40
@@ -667,6 +683,7 @@ process.on('SIGTERM', async () => {
 - CloudWatch + misc: ~$10-30
 
 ### 10k DAU (~$350-500/month)
+
 - ALB: ~$30
 - NAT Gateway (2): ~$70
 - ECS Fargate (5 tasks): ~$100
@@ -678,6 +695,7 @@ process.on('SIGTERM', async () => {
 - CloudWatch + misc: ~$30-50
 
 ### 100k DAU (~$1,200-1,500/month)
+
 - ALB: ~$50
 - NAT Gateway (3): ~$105
 - ECS Fargate (13 tasks): ~$400
@@ -691,6 +709,7 @@ process.on('SIGTERM', async () => {
 ### Cost Optimization Tips
 
 1. **ARM64/Graviton (up to 20% savings)**: AWS Graviton processors offer better price-performance. To enable:
+
    ```typescript
    // In ECS task definitions
    runtimePlatform: {
@@ -698,11 +717,13 @@ process.on('SIGTERM', async () => {
      operatingSystemFamily: "LINUX"
    }
    ```
+
    **Requirements**: Build multi-arch Docker images (`docker buildx build --platform linux/amd64,linux/arm64`) and use ARM-compatible base images (most `node:` images support both).
 
 2. **FARGATE_SPOT (up to 70% savings)**: Already configured in all stacks. Adjust the weight:
+
    ```yaml
-   fargateSpotWeight: 80  # 80% spot, 20% on-demand
+   fargateSpotWeight: 80 # 80% spot, 20% on-demand
    ```
 
 3. **Reserved Capacity**: For predictable workloads, consider Compute Savings Plans (up to 50% savings on Fargate).
@@ -724,21 +745,25 @@ pulumi stack rm <stack-name>
 ## Troubleshooting
 
 ### ECS Tasks Not Starting
+
 - Check CloudWatch Logs for container errors
 - Verify secrets are accessible
 - For dev stack: ensure tasks have public IPs assigned
 
 ### WebSocket Connections Dropping
+
 - Verify ALB idle timeout is 300s
 - Check Redis connectivity
 - Review WAF rate limits (if enabled)
 
 ### Database Connection Issues
+
 - Check security group rules
 - Verify RDS Proxy health (if enabled)
 - Check Secrets Manager access
 
 ### High Event Loop Lag
+
 - Review message payload sizes
 - Consider upgrading to higher DAU stack
 - Verify Redis adapter isn't bottlenecked

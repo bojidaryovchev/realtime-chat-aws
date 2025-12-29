@@ -14,7 +14,6 @@ Your task is to design and implement a **production-ready MVP infrastructure** u
 ### Backend Stack
 
 - **ECS Fargate**
-
   - `api` service:
     - Node.js
     - Fastify
@@ -35,7 +34,6 @@ Your task is to design and implement a **production-ready MVP infrastructure** u
 ### Data Layer
 
 - **Postgres**
-
   - **RDS PostgreSQL (Multi-AZ)**
   - Used for:
     - users

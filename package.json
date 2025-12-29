@@ -10,7 +10,7 @@
     "build:packages": "pnpm -r --filter './packages/*' build",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
-    "format": "prettier --write \"**/*.ts\"",
+    "format": "prettier --write .",
     "test": "pnpm -r test",
     "test:coverage": "pnpm -r test:coverage",
     "db:generate": "pnpm --filter @realtime-chat/database prisma generate",

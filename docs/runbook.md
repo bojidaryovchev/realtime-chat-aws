@@ -22,11 +22,11 @@ This runbook provides step-by-step procedures for common operational tasks and i
 
 ## Service Overview
 
-| Service | Purpose | Port | Health Endpoint |
-|---------|---------|------|-----------------|
-| API | REST/GraphQL endpoints | 3000 | `/health` |
-| Realtime | WebSocket connections (Socket.IO) | 3001 | `/health` |
-| Workers | SQS queue consumers | 3002 | `/health` |
+| Service  | Purpose                           | Port | Health Endpoint |
+| -------- | --------------------------------- | ---- | --------------- |
+| API      | REST/GraphQL endpoints            | 3000 | `/health`       |
+| Realtime | WebSocket connections (Socket.IO) | 3001 | `/health`       |
+| Workers  | SQS queue consumers               | 3002 | `/health`       |
 
 ### Architecture Quick Reference
 
@@ -38,16 +38,16 @@ Internet → WAF → ALB → ECS Services → RDS + Redis
 
 ### Key Metrics to Monitor
 
-| Metric | Service | Warning | Critical |
-|--------|---------|---------|----------|
-| CPU | ECS | 70% | 85% |
-| Memory | ECS | 70% | 85% |
-| Connections | RDS | 70% of max | 90% of max |
-| Memory | Redis | 70% | 85% |
+| Metric             | Service  | Warning         | Critical        |
+| ------------------ | -------- | --------------- | --------------- |
+| CPU                | ECS      | 70%             | 85%             |
+| Memory             | ECS      | 70%             | 85%             |
+| Connections        | RDS      | 70% of max      | 90% of max      |
+| Memory             | Redis    | 70%             | 85%             |
 | Active Connections | Realtime | 80% of max/task | 95% of max/task |
-| Event Loop Lag | Realtime | 100ms | 200ms |
-| Queue Depth | SQS | 1000 | 5000 |
-| DLQ Messages | SQS | 1 | 10 |
+| Event Loop Lag     | Realtime | 100ms           | 200ms           |
+| Queue Depth        | SQS      | 1000            | 5000            |
+| DLQ Messages       | SQS      | 1               | 10              |
 
 ---
 
@@ -99,6 +99,7 @@ aws rds describe-db-instances \
 ### High CPU Utilization
 
 #### Symptoms
+
 - CloudWatch alarm: `*-high-cpu` triggered
 - Slow response times
 - Request timeouts
@@ -121,6 +122,7 @@ aws cloudwatch get-metric-statistics \
 #### Resolution
 
 1. **Immediate**: Scale out the service
+
    ```bash
    aws ecs update-service \
      --cluster $CLUSTER \
@@ -129,6 +131,7 @@ aws cloudwatch get-metric-statistics \
    ```
 
 2. **If auto-scaling isn't responding**: Check auto-scaling configuration
+
    ```bash
    aws application-autoscaling describe-scaling-policies \
      --service-namespace ecs \
@@ -145,6 +148,7 @@ aws cloudwatch get-metric-statistics \
 ### Database Connection Issues
 
 #### Symptoms
+
 - Application errors: "Connection refused" or "Too many connections"
 - CloudWatch alarm: `*-rds-high-connections`
 - Slow queries
@@ -166,12 +170,14 @@ aws cloudwatch get-metric-statistics \
 #### Resolution
 
 1. **If RDS Proxy is enabled**: Check proxy health
+
    ```bash
    aws rds describe-db-proxies \
      --query 'DBProxies[*].{name:DBProxyName,status:Status}'
    ```
 
 2. **Kill idle connections** (connect via ECS Exec):
+
    ```bash
    # Get a shell in API container
    aws ecs execute-command \
@@ -180,7 +186,7 @@ aws cloudwatch get-metric-statistics \
      --container api \
      --interactive \
      --command "/bin/sh"
-   
+
    # Inside container, check connections
    psql $DATABASE_URL -c "SELECT count(*) FROM pg_stat_activity;"
    psql $DATABASE_URL -c "SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE state = 'idle' AND query_start < now() - interval '10 minutes';"
@@ -193,6 +199,7 @@ aws cloudwatch get-metric-statistics \
 ### Redis Connection Issues
 
 #### Symptoms
+
 - Socket.IO adapter errors
 - Session/presence data stale
 - CloudWatch alarm: `*-redis-high-*`
@@ -218,6 +225,7 @@ aws cloudwatch get-metric-statistics \
 #### Resolution
 
 1. **Verify Redis AUTH**: Check Secrets Manager for the auth token
+
    ```bash
    aws secretsmanager get-secret-value \
      --secret-id $REDIS_AUTH_SECRET_ARN \
@@ -225,6 +233,7 @@ aws cloudwatch get-metric-statistics \
    ```
 
 2. **If memory pressure**: Clear non-essential keys or scale up
+
    ```bash
    # Connect via ECS Exec and use redis-cli
    redis-cli -h $REDIS_HOST --tls -a $REDIS_PASSWORD
@@ -239,6 +248,7 @@ aws cloudwatch get-metric-statistics \
 ### WebSocket Connection Drops
 
 #### Symptoms
+
 - Users reporting disconnections
 - High reconnection rate in logs
 - CloudWatch alarm: `*-realtime-unhealthy-targets`
@@ -265,6 +275,7 @@ aws cloudwatch get-metric-statistics \
 #### Resolution
 
 1. **Check realtime service logs**:
+
    ```bash
    aws logs tail /ecs/$PROJECT-$ENV/realtime --follow
    ```
@@ -272,6 +283,7 @@ aws cloudwatch get-metric-statistics \
 2. **Verify Redis adapter connectivity** (required for multi-instance pub/sub)
 
 3. **Check for event loop lag**:
+
    ```bash
    aws cloudwatch get-metric-statistics \
      --namespace $PROJECT-$ENV \
@@ -298,6 +310,7 @@ aws cloudwatch get-metric-statistics \
 ### High Error Rates
 
 #### Symptoms
+
 - CloudWatch alarm: `*-alb-5xx`
 - Error logs increasing
 - User-reported issues
@@ -333,6 +346,7 @@ aws athena start-query-execution \
 ### SQS Queue Backlog
 
 #### Symptoms
+
 - CloudWatch alarm: `*-sqs-*-dlq` or `*-workers-message-age`
 - Push notifications delayed
 - Offline messages not delivered
@@ -354,6 +368,7 @@ aws sqs get-queue-attributes \
 #### Resolution
 
 1. **Scale workers**:
+
    ```bash
    aws ecs update-service \
      --cluster $CLUSTER \
@@ -362,6 +377,7 @@ aws sqs get-queue-attributes \
    ```
 
 2. **If DLQ has messages**: Investigate failure reason
+
    ```bash
    # Receive messages from DLQ to inspect
    aws sqs receive-message \
@@ -465,6 +481,7 @@ aws ecs update-service \
 If the primary region is unavailable and you have cross-region backups enabled:
 
 1. **Restore RDS in DR region**:
+
    ```bash
    # List available recovery points
    aws backup list-recovery-points-by-backup-vault \
@@ -480,6 +497,7 @@ If the primary region is unavailable and you have cross-region backups enabled:
    ```
 
 2. **Deploy infrastructure in DR region**:
+
    ```bash
    # Update Pulumi config for DR region
    pulumi config set aws:region $DR_REGION
@@ -564,11 +582,11 @@ aws secretsmanager get-secret-value \
 
 ## Contact & Escalation
 
-| Level | Time | Contact |
-|-------|------|---------|
-| L1 - On-call | 0-15 min | PagerDuty / On-call rotation |
-| L2 - Engineering | 15-30 min | #engineering-oncall Slack |
-| L3 - Infrastructure | 30+ min | Infrastructure team lead |
+| Level               | Time      | Contact                      |
+| ------------------- | --------- | ---------------------------- |
+| L1 - On-call        | 0-15 min  | PagerDuty / On-call rotation |
+| L2 - Engineering    | 15-30 min | #engineering-oncall Slack    |
+| L3 - Infrastructure | 30+ min   | Infrastructure team lead     |
 
 ### When to Escalate
 
