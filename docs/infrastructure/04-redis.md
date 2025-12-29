@@ -47,46 +47,69 @@ This module creates Amazon ElastiCache Redis cluster(s) optimized for a real-tim
 
 ### Single Mode (Dev)
 
-```
-   ECS Tasks (Realtime)
-         │
-         ▼
-┌─────────────────────────────────────┐
-│      Redis Cluster (Single)         │
-│  ┌─────────────┐  ┌─────────────┐  │
-│  │   Primary   │──│   Replica   │  │
-│  │   (AZ-a)    │  │   (AZ-b)    │  │
-│  └─────────────┘  └─────────────┘  │
-│                                     │
-│  All workloads:                     │
-│  - Socket.IO adapter (pub/sub)      │
-│  - Presence                         │
-│  - Rate limiting                    │
-│  - Caching                          │
-└─────────────────────────────────────┘
+```mermaid
+flowchart TB
+    subgraph ECS["ECS Realtime Tasks"]
+        RT1[🔷 Realtime 1]
+        RT2[🔷 Realtime 2]
+    end
+
+    subgraph Redis["Redis Cluster (Single)"]
+        Primary[(⚡ Primary<br/>AZ-a)]
+        Replica[(📖 Replica<br/>AZ-b)]
+        Primary -.->|Replication| Replica
+    end
+
+    subgraph Workloads["All Workloads"]
+        WL1[🔄 Socket.IO Pub/Sub]
+        WL2[👁️ Presence]
+        WL3[🚦 Rate Limiting]
+        WL4[💾 Caching]
+    end
+
+    RT1 --> Primary
+    RT2 --> Primary
+    Primary --> WL1
+    Primary --> WL2
+    Primary --> WL3
+    Primary --> WL4
 ```
 
 ### Split Mode (Production)
 
+```mermaid
+flowchart TB
+    subgraph ECS["ECS Realtime Tasks"]
+        RT1[🔷 Realtime 1]
+        RT2[🔷 Realtime 2]
+    end
+
+    subgraph Adapter["Redis Adapter Cluster<br/>(High Pub/Sub)"]
+        AP[(⚡ Primary)]
+        AR[(📖 Replica)]
+        AP -.-> AR
+    end
+
+    subgraph State["Redis State Cluster<br/>(High Read)"]
+        SP[(⚡ Primary)]
+        SR[(📖 Replica)]
+        SP -.-> SR
+    end
+
+    RT1 -->|Socket.IO<br/>Message Fanout| AP
+    RT2 -->|Socket.IO<br/>Message Fanout| AP
+    RT1 -->|Presence<br/>Sessions<br/>Rate Limits| SP
+    RT2 -->|Presence<br/>Sessions<br/>Rate Limits| SP
 ```
-   ECS Tasks (Realtime)
-         │
-         ├─────────────────────────────────┐
-         │                                 │
-         ▼                                 ▼
-┌─────────────────────────┐    ┌─────────────────────────┐
-│   Redis Adapter Cluster │    │   Redis State Cluster   │
-│  (High Pub/Sub Traffic) │    │  (High Read Traffic)    │
-│                         │    │                         │
-│  ┌─────────┐ ┌────────┐│    │  ┌─────────┐ ┌────────┐ │
-│  │ Primary │─│Replica ││    │  │ Primary │─│Replica │ │
-│  └─────────┘ └────────┘│    │  └─────────┘ └────────┘ │
-│                         │    │                         │
-│  Purpose:               │    │  Purpose:               │
-│  - Socket.IO pub/sub    │    │  - Presence             │
-│  - Message fanout       │    │  - Sessions             │
-│                         │    │  - Rate limiting        │
-└─────────────────────────┘    └─────────────────────────┘
+
+### Why Split Mode?
+
+```mermaid
+pie title Redis Operation Distribution (High Scale)
+    "Pub/Sub (Adapter)" : 60
+    "Presence Reads" : 20
+    "Session Lookups" : 10
+    "Rate Limiting" : 10
 ```
 
 ---

@@ -1,0 +1,13 @@
+{
+  "recommendations": [
+    "bierner.markdown-mermaid",
+    "streetsidesoftware.code-spell-checker",
+    "dbaeumer.vscode-eslint",
+    "eamodio.gitlens",
+    "pkief.material-icon-theme",
+    "esbenp.prettier-vscode",
+    "prisma.prisma",
+    "tonybaloney.vscode-pets",
+    "bradlc.vscode-tailwindcss"
+  ]
+}

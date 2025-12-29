@@ -16,31 +16,37 @@ AWS Certificate Manager (ACM) provides free SSL/TLS certificates for use with AW
 
 ## Architecture
 
+```mermaid
+flowchart TB
+    subgraph Step1["1️⃣ Request Certificate"]
+        ACM["🔐 ACM Certificate<br/>domainName: example.com<br/>SAN: *.example.com"]
+    end
+
+    subgraph Step2["2️⃣ Create Validation Records"]
+        R53["🔷 Route53 CNAME Record<br/>_acme.example.com<br/>→ validation.acm.aws"]
+    end
+
+    subgraph Step3["3️⃣ Certificate Validated"]
+        Validated["✅ Certificate Issued<br/>Ready for ALB"]
+    end
+
+    ACM -->|DNS validation| R53
+    R53 -->|ACM checks record| Validated
 ```
-┌─────────────────────────────────────────────────────────────────┐
-│                    Certificate Flow                              │
-│                                                                  │
-│  1. Request Certificate                                          │
-│     ┌──────────────┐                                            │
-│     │ ACM          │                                            │
-│     │ Certificate  │ → domainName: example.com                  │
-│     │              │ → SAN: *.example.com                       │
-│     └──────┬───────┘                                            │
-│            │                                                     │
-│  2. Create Validation Records                                    │
-│            ▼                                                     │
-│     ┌──────────────┐                                            │
-│     │ Route53      │                                            │
-│     │ CNAME Record │ → _acme.example.com → validation.acm.aws  │
-│     └──────┬───────┘                                            │
-│            │                                                     │
-│  3. ACM Validates (checks DNS record exists)                    │
-│            ▼                                                     │
-│     ┌──────────────┐                                            │
-│     │ Certificate  │                                            │
-│     │ Validated ✓  │ → Ready for ALB attachment                 │
-│     └──────────────┘                                            │
-└─────────────────────────────────────────────────────────────────┘
+
+### Certificate Lifecycle
+
+```mermaid
+stateDiagram-v2
+    [*] --> Requested: pulumi up
+    Requested --> PendingValidation: Certificate created
+    PendingValidation --> Issued: DNS record verified
+    Issued --> InUse: Attached to ALB
+    InUse --> Renewal: 60 days before expiry
+    Renewal --> Issued: Auto-renewed
+    
+    note right of PendingValidation: 5-30 minutes
+    note right of Renewal: Automatic, no action needed
 ```
 
 ---

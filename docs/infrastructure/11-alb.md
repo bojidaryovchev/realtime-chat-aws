@@ -18,38 +18,53 @@ The ALB is the entry point for all HTTP/WebSocket traffic:
 
 ## Architecture
 
+```mermaid
+flowchart TB
+    Internet(("🌐 Internet"))
+
+    subgraph DNS["🔷 Route 53"]
+        R53["api.domain.com<br/>ws.domain.com"]
+    end
+
+    subgraph LB["⚖️ Application Load Balancer"]
+        ALB["ALB<br/>HTTPS :443<br/>HTTP :80 → 443"]
+    end
+
+    subgraph Rules["📋 Routing Rules"]
+        Rule1["/api/*"]
+        Rule2["/socket.io/*"]
+        Rule3["/ws/*"]
+    end
+
+    subgraph Targets["🎯 Target Groups"]
+        API_TG["API TG<br/>Port 3001"]
+        RT_TG["Realtime TG<br/>Port 3002"]
+    end
+
+    Internet --> DNS
+    DNS --> LB
+    ALB --> Rule1 & Rule2 & Rule3
+    Rule1 --> API_TG
+    Rule2 & Rule3 --> RT_TG
 ```
-                    Internet
-                        │
-                        ▼
-              ┌─────────────────┐
-              │   Route 53      │
-              │  api.domain.com │
-              │  ws.domain.com  │
-              └────────┬────────┘
-                       │
-                       ▼
-              ┌─────────────────┐
-              │      ALB        │
-              │  (HTTPS :443)   │
-              │  (HTTP :80→443) │
-              └────────┬────────┘
-                       │
-        ┌──────────────┼──────────────┐
-        │              │              │
-        ▼              ▼              ▼
-   ┌─────────┐   ┌──────────┐   ┌──────────┐
-   │ /api/*  │   │/socket.io│   │  /ws/*   │
-   │  Rule   │   │   Rule   │   │   Rule   │
-   └────┬────┘   └────┬─────┘   └────┬─────┘
-        │             │              │
-        ▼             └──────┬───────┘
-   ┌─────────┐              │
-   │API TG   │              ▼
-   │:3001    │        ┌──────────┐
-   └─────────┘        │Realtime  │
-                      │TG :3002  │
-                      └──────────┘
+
+### Request Flow
+
+```mermaid
+sequenceDiagram
+    participant Client
+    participant Route53 as Route 53
+    participant ALB
+    participant TG as Target Group
+    participant ECS as ECS Task
+
+    Client->>Route53: DNS lookup api.example.com
+    Route53-->>Client: ALB IP address
+    Client->>ALB: HTTPS request
+    Note over ALB: TLS termination<br/>Path matching
+    ALB->>TG: Forward to healthy target
+    TG->>ECS: Route to container
+    ECS-->>Client: Response
 ```
 
 ---

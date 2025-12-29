@@ -18,23 +18,42 @@ This is the largest infrastructure module (~630 lines). It creates:
 
 ## Architecture
 
+```mermaid
+flowchart TB
+    subgraph Cluster["🔷 ECS Cluster"]
+        subgraph API["API Service"]
+            API_Task["📦 Task (Fargate)"]
+            API_Container["🟢 API Container<br/>Port 3001"]
+        end
+
+        subgraph RT["Realtime Service"]
+            RT_Task["📦 Task (Fargate)"]
+            RT_Container["🟢 Realtime Container<br/>Port 3002"]
+        end
+    end
+
+    ALB_API["🌐 ALB Target Group<br/>api.domain.com"]
+    ALB_WS["🌐 ALB Target Group<br/>ws.domain.com"]
+
+    API_Container --> ALB_API
+    RT_Container --> ALB_WS
 ```
-┌─────────────────────────────────────────────────────────────────────┐
-│                         ECS Cluster                                  │
-│  ┌─────────────────────────────┐  ┌─────────────────────────────┐  │
-│  │     API Service             │  │   Realtime Service          │  │
-│  │  ┌─────────────────────┐   │  │  ┌─────────────────────┐    │  │
-│  │  │   Task (Fargate)    │   │  │  │   Task (Fargate)    │    │  │
-│  │  │  ┌───────────────┐  │   │  │  │  ┌───────────────┐  │    │  │
-│  │  │  │ API Container │  │   │  │  │  │Realtime Cont. │  │    │  │
-│  │  │  │  Port 3001    │  │   │  │  │  │  Port 3002    │  │    │  │
-│  │  │  └───────────────┘  │   │  │  │  └───────────────┘  │    │  │
-│  │  └─────────────────────┘   │  │  └─────────────────────┘    │  │
-│  └─────────────────────────────┘  └─────────────────────────────┘  │
-└─────────────────────────────────────────────────────────────────────┘
-        ↓                                    ↓
-   ALB Target Group                    ALB Target Group
-   (api.domain.com)                   (ws.domain.com)
+
+### Traffic Flow
+
+```mermaid
+sequenceDiagram
+    participant Client
+    participant ALB
+    participant Service as ECS Service
+    participant Task as Task (Container)
+    participant AWS as AWS Services
+
+    Client->>ALB: Request (api.domain.com)
+    ALB->>Service: Route to healthy target
+    Service->>Task: Forward request
+    Task->>AWS: Access SQS/CloudWatch
+    Task-->>Client: Response
 ```
 
 ---
@@ -228,12 +247,20 @@ deploymentCircuitBreaker: {
 
 ### Deployment Flow (2 desired, 200/100)
 
-```
-1. Start:     [Task-1] [Task-2]  (2 running)
-2. Deploy:    [Task-1] [Task-2] [Task-3-new] [Task-4-new]  (4 running, max 200%)
-3. Healthy:   [Task-1] [Task-2] [Task-3-new ✓] [Task-4-new ✓]
-4. Drain:     [Task-1 draining] [Task-2 draining] [Task-3-new] [Task-4-new]
-5. Complete:  [Task-3-new] [Task-4-new]  (2 running)
+```mermaid
+stateDiagram-v2
+    direction LR
+    
+    state "🟢 Task-1<br/>🟢 Task-2" as Start
+    state "🟢 Task-1<br/>🟢 Task-2<br/>🟡 Task-3-new<br/>🟡 Task-4-new" as Deploy
+    state "🟢 Task-1<br/>🟢 Task-2<br/>✅ Task-3-new<br/>✅ Task-4-new" as Healthy
+    state "🟡 Task-1 draining<br/>🟡 Task-2 draining<br/>🟢 Task-3-new<br/>🟢 Task-4-new" as Drain
+    state "🟢 Task-3-new<br/>🟢 Task-4-new" as Complete
+    
+    Start --> Deploy: New deployment
+    Deploy --> Healthy: Health checks pass
+    Healthy --> Drain: Old tasks draining
+    Drain --> Complete: Connections drained
 ```
 
 ### Enable Execute Command

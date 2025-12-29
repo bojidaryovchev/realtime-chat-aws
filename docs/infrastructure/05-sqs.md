@@ -42,42 +42,54 @@ This module creates Amazon SQS queues for handling asynchronous workloads that s
 
 ## Architecture Diagram
 
+```mermaid
+flowchart TB
+    subgraph Realtime["🔷 Realtime Service"]
+        RT[Socket.IO Handler]
+    end
+
+    subgraph Workers["⚙️ Workers Service"]
+        W1[Offline Processor]
+        W2[Push Processor]
+    end
+
+    subgraph Queues["📬 SQS Queues"]
+        subgraph Offline["Offline Messages"]
+            OQ[📥 Queue<br/>visTimeout: 30s<br/>retention: 4d]
+            ODLQ[💀 DLQ<br/>retention: 14d]
+        end
+        subgraph Push["Push Notifications"]
+            PQ[📥 Queue<br/>visTimeout: 60s<br/>retention: 4d]
+            PDLQ[💀 DLQ<br/>retention: 14d]
+        end
+    end
+
+    subgraph External["📱 External Services"]
+        APNS[🍎 APNs]
+        FCM[🤖 FCM]
+    end
+
+    RT -->|User offline?| OQ
+    OQ -->|3 retries| ODLQ
+    OQ --> W1
+    W1 -->|Store & queue push| PQ
+    PQ -->|3 retries| PDLQ
+    PQ --> W2
+    W2 --> APNS
+    W2 --> FCM
 ```
-┌─────────────────────────────────────────────────────────────────────────────┐
-│                            MESSAGE FLOW                                      │
-│                                                                              │
-│   Realtime Service                                                           │
-│        │                                                                     │
-│        │ User offline?                                                       │
-│        ▼                                                                     │
-│   ┌─────────────────────┐                    ┌─────────────────────┐        │
-│   │ Offline Msg Queue   │──── 3 retries ────▶│  Offline Msg DLQ    │        │
-│   │                     │                    │                     │        │
-│   │ • visTimeout: 30s   │                    │ • retention: 14d    │        │
-│   │ • retention: 4d     │                    │ • manual review     │        │
-│   │ • long poll: 20s    │                    │                     │        │
-│   └──────────┬──────────┘                    └─────────────────────┘        │
-│              │                                                               │
-│              ▼                                                               │
-│        Workers Service                                                       │
-│              │                                                               │
-│              │ Store in DB, queue push                                       │
-│              ▼                                                               │
-│   ┌─────────────────────┐                    ┌─────────────────────┐        │
-│   │ Push Notif Queue    │──── 3 retries ────▶│  Push Notif DLQ     │        │
-│   │                     │                    │                     │        │
-│   │ • visTimeout: 60s   │                    │ • retention: 14d    │        │
-│   │ • retention: 4d     │                    │ • manual review     │        │
-│   │ • long poll: 20s    │                    │                     │        │
-│   └──────────┬──────────┘                    └─────────────────────┘        │
-│              │                                                               │
-│              ▼                                                               │
-│        Workers Service                                                       │
-│              │                                                               │
-│              │ Send to APNs/FCM                                              │
-│              ▼                                                               │
-│        External Push Services                                                │
-└─────────────────────────────────────────────────────────────────────────────┘
+
+### Message Lifecycle
+
+```mermaid
+stateDiagram-v2
+    [*] --> Queued: Message sent
+    Queued --> InFlight: Worker receives
+    InFlight --> Deleted: Success
+    InFlight --> Queued: Visibility timeout
+    Queued --> DLQ: 3 failures
+    DLQ --> [*]: Manual review
+    Deleted --> [*]
 ```
 
 ---

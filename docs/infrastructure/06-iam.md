@@ -30,66 +30,80 @@ This module creates IAM roles for ECS Fargate tasks. Each service gets its own t
 
 ### Two Types of ECS Roles
 
-```
-┌────────────────────────────────────────────────────────────────────────────┐
-│                          ECS TASK                                          │
-│                                                                            │
-│   ┌─────────────────────────────────────────────────────────────────┐     │
-│   │  EXECUTION ROLE (ecsTaskExecutionRole)                          │     │
-│   │  ─────────────────────────────────────────────                  │     │
-│   │  Used BY ECS agent (not your code)                              │     │
-│   │                                                                  │     │
-│   │  • Pull container images from ECR                               │     │
-│   │  • Fetch secrets from Secrets Manager                           │     │
-│   │  • Write logs to CloudWatch                                     │     │
-│   │                                                                  │     │
-│   │  When: Before container starts                                  │     │
-│   └─────────────────────────────────────────────────────────────────┘     │
-│                                                                            │
-│   ┌─────────────────────────────────────────────────────────────────┐     │
-│   │  TASK ROLE (ecsApiTaskRole, etc.)                               │     │
-│   │  ─────────────────────────────────────────────────              │     │
-│   │  Used BY your application code                                  │     │
-│   │                                                                  │     │
-│   │  • Send messages to SQS                                         │     │
-│   │  • Publish CloudWatch metrics                                   │     │
-│   │  • Any AWS SDK calls your code makes                            │     │
-│   │                                                                  │     │
-│   │  When: While container is running                               │     │
-│   └─────────────────────────────────────────────────────────────────┘     │
-│                                                                            │
-└────────────────────────────────────────────────────────────────────────────┘
+```mermaid
+flowchart TB
+    subgraph Task["🔷 ECS Task"]
+        subgraph Exec["Execution Role"]
+            direction TB
+            E1[📦 Pull ECR Images]
+            E2[🔐 Fetch Secrets]
+            E3[📝 Write Logs]
+        end
+
+        subgraph TaskRole["Task Role"]
+            direction TB
+            T1[📬 SQS Operations]
+            T2[📊 CloudWatch Metrics]
+            T3[🔧 App-specific AWS calls]
+        end
+    end
+
+    Agent[🤖 ECS Agent] -->|Uses| Exec
+    App[📱 Your App Code] -->|Uses| TaskRole
+
+    Note1[Before container starts] -.-> Exec
+    Note2[While container runs] -.-> TaskRole
 ```
 
 ---
 
 ## Role Architecture
 
+```mermaid
+flowchart TB
+    subgraph Shared["Shared Execution Role"]
+        ExecRole[🔑 ECS Task Execution Role<br/>• ECR pull<br/>• Secrets access<br/>• Log writing]
+    end
+
+    subgraph TaskRoles["Service-Specific Task Roles"]
+        API[👤 API Task Role<br/>• sqs:SendMessage<br/>• cloudwatch:Put*]
+        RT[👤 Realtime Task Role<br/>• sqs:Send/Receive<br/>• cloudwatch:Put*]
+        Workers[👤 Workers Task Role<br/>• sqs:Receive/Delete<br/>• cloudwatch:Put*]
+    end
+
+    ExecRole --> API
+    ExecRole --> RT
+    ExecRole --> Workers
+
+    subgraph Services["ECS Services"]
+        S1[🔷 API Service]
+        S2[🔷 Realtime Service]
+        S3[⚙️ Workers Service]
+    end
+
+    API --> S1
+    RT --> S2
+    Workers --> S3
 ```
-                      ┌──────────────────────────────────┐
-                      │   ECS Task Execution Role        │
-                      │   (Shared by all services)       │
-                      │                                  │
-                      │   • AmazonECSTaskExecutionRole   │
-                      │   • secretsmanager:GetSecretValue│
-                      │   • ssm:GetParameter             │
-                      │   • kms:Decrypt                  │
-                      └──────────────────────────────────┘
-                                     │
-            ┌────────────────────────┼────────────────────────┐
-            │                        │                        │
-            ▼                        ▼                        ▼
-┌───────────────────────┐ ┌───────────────────────┐ ┌───────────────────────┐
-│   API Task Role       │ │  Realtime Task Role   │ │  Workers Task Role    │
-│                       │ │                       │ │                       │
-│   • sqs:SendMessage   │ │   • sqs:SendMessage   │ │   • sqs:ReceiveMessage│
-│   • cloudwatch:Put*   │ │   • sqs:ReceiveMessage│ │   • sqs:DeleteMessage │
-│   • logs:*            │ │   • cloudwatch:Put*   │ │   • sqs:ChangeVisib*  │
-│   • ssmmessages:*     │ │   • logs:*            │ │   • cloudwatch:Put*   │
-│                       │ │   • ssmmessages:*     │ │   • logs:*            │
-│                       │ │                       │ │   • ssmmessages:*     │
-└───────────────────────┘ └───────────────────────┘ └───────────────────────┘
+
+### Permission Matrix
+
+```mermaid
+graph TB
+    subgraph Legend
+        A[✅ Allowed]
+        B[❌ Denied]
+    end
 ```
+
+| Permission | Execution | API | Realtime | Workers |
+|------------|-----------|-----|----------|---------|
+| `ecr:GetAuthorizationToken` | ✅ | ❌ | ❌ | ❌ |
+| `secretsmanager:GetSecretValue` | ✅ | ❌ | ❌ | ❌ |
+| `sqs:SendMessage` | ❌ | ✅ | ✅ | ❌ |
+| `sqs:ReceiveMessage` | ❌ | ❌ | ✅ | ✅ |
+| `sqs:DeleteMessage` | ❌ | ❌ | ❌ | ✅ |
+| `cloudwatch:PutMetricData` | ❌ | ✅ | ✅ | ✅ |
 
 ---
 

@@ -19,34 +19,56 @@ AWS WAF (Web Application Firewall) protects the ALB from:
 
 ## Architecture
 
+```mermaid
+flowchart TB
+    Internet(("🌐 Internet"))
+
+    subgraph WAF["🛡️ WAF Web ACL"]
+        direction TB
+        Rule1["🔵 Rule 1: AWS Common Rules<br/>Priority 10"]
+        Rule2["🔵 Rule 2: Known Bad Inputs<br/>Priority 20"]
+        Rule3["🤖 Rule 3: Bot Control<br/>Priority 30"]
+        Rule4["⏱️ Rule 4: API Rate Limit<br/>Priority 40"]
+        Rule5["⏱️ Rule 5: Socket.IO Rate Limit<br/>Priority 50"]
+        Rule6["⏱️ Rule 6: Global Rate Limit<br/>Priority 60"]
+    end
+
+    subgraph Actions["📋 Actions"]
+        Allow["✅ ALLOW"]
+        Block["⛔ BLOCK"]
+        Count["📊 COUNT"]
+    end
+
+    ALB["⚖️ ALB"]
+
+    Internet --> WAF
+    Rule1 & Rule2 & Rule3 & Rule4 & Rule5 & Rule6 --> Actions
+    Allow --> ALB
 ```
-┌─────────────────────────────────────────────────────────────────┐
-│                    Request Flow with WAF                         │
-│                                                                  │
-│  Internet                                                        │
-│     │                                                            │
-│     ▼                                                            │
-│  ┌──────────────────────────────────────────────────────────────┐│
-│  │                    WAF Web ACL                                ││
-│  │  ┌──────────────────────────────────────────────────────────┐││
-│  │  │ Rule 1: AWS Managed - Common Rule Set        Priority 10 │││
-│  │  │ Rule 2: AWS Managed - Known Bad Inputs       Priority 20 │││
-│  │  │ Rule 3: AWS Managed - Bot Control            Priority 30 │││
-│  │  │ Rule 4: API Rate Limit (IP-based)            Priority 40 │││
-│  │  │ Rule 5: Socket.IO Rate Limit (IP-based)      Priority 50 │││
-│  │  │ Rule 6: Global Rate Limit (IP-based)         Priority 60 │││
-│  │  └──────────────────────────────────────────────────────────┘││
-│  │                            │                                  ││
-│  │              ┌─────────────┼─────────────┐                   ││
-│  │              ▼             ▼             ▼                   ││
-│  │           ALLOW         BLOCK         COUNT                  ││
-│  └──────────────────────────────────────────────────────────────┘│
-│                 │                                                │
-│                 ▼                                                │
-│              ┌─────┐                                            │
-│              │ ALB │                                            │
-│              └─────┘                                            │
-└─────────────────────────────────────────────────────────────────┘
+
+### Request Evaluation Flow
+
+```mermaid
+sequenceDiagram
+    participant Client
+    participant WAF
+    participant ALB
+    participant ECS
+
+    Client->>WAF: HTTP Request
+    
+    loop Each Rule (by priority)
+        WAF->>WAF: Evaluate rule
+        alt Rule matches
+            WAF-->>Client: BLOCK (429/403)
+        else Rule doesn't match
+            WAF->>WAF: Continue to next rule
+        end
+    end
+    
+    WAF->>ALB: ALLOW (default action)
+    ALB->>ECS: Forward request
+    ECS-->>Client: Response
 ```
 
 ---

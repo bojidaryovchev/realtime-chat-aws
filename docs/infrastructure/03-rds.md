@@ -37,35 +37,64 @@ This module creates an Amazon RDS PostgreSQL database with enterprise features f
 
 ## Architecture Diagram
 
+```mermaid
+flowchart TB
+    subgraph ECS["ECS Tasks"]
+        API[🔷 API]
+        RT[🔷 Realtime]
+        Workers[⚙️ Workers]
+    end
+
+    subgraph Private["Private Subnets"]
+        subgraph Proxy["RDS Proxy (Optional)"]
+            PRX[🔀 Connection Pooling<br/>Fast Failover]
+        end
+
+        subgraph Primary["RDS Primary"]
+            DB[(🐘 PostgreSQL<br/>Multi-AZ)]
+            Standby[(📦 Standby<br/>AZ-b)]
+        end
+
+        subgraph Replica["Read Replica (Optional)"]
+            RR[(📖 Read Replica<br/>For read-heavy queries)]
+        end
+
+        subgraph Secrets["Credentials"]
+            SM[🔐 Secrets Manager<br/>Username/Password]
+        end
+    end
+
+    API --> PRX
+    RT --> PRX
+    Workers --> PRX
+    PRX --> DB
+    DB -.->|Sync Replication| Standby
+    DB -.->|Async Replication| RR
+    PRX -.->|Read Access| SM
 ```
-                    ┌─────────────────────────────────────────────────┐
-                    │              PRIVATE SUBNETS                    │
-                    │                                                 │
-   ECS Tasks ───────┼───▶ ┌─────────────────┐                        │
-   (API/Realtime/   │     │   RDS Proxy     │ (When enabled)         │
-    Workers)        │     │  - Connection   │                        │
-                    │     │    pooling      │                        │
-                    │     │  - Fast failover│                        │
-                    │     └────────┬────────┘                        │
-                    │              │                                  │
-                    │              ▼                                  │
-                    │     ┌─────────────────┐    ┌─────────────────┐ │
-                    │     │  RDS Primary    │◄───│ Read Replica    │ │
-                    │     │  (Multi-AZ)     │    │ (When enabled)  │ │
-                    │     │                 │    │                 │ │
-                    │     │  ┌───────────┐  │    │  For read-heavy │ │
-                    │     │  │  Standby  │  │    │  queries        │ │
-                    │     │  │  (AZ-b)   │  │    │                 │ │
-                    │     │  └───────────┘  │    │                 │ │
-                    │     └─────────────────┘    └─────────────────┘ │
-                    │                                                 │
-                    │     ┌─────────────────┐                        │
-                    │     │ Secrets Manager │                        │
-                    │     │ - Username      │                        │
-                    │     │ - Password      │                        │
-                    │     │ - Database name │                        │
-                    │     └─────────────────┘                        │
-                    └─────────────────────────────────────────────────┘
+
+### Connection Flow
+
+```mermaid
+sequenceDiagram
+    participant App as 🔷 ECS Task
+    participant Proxy as 🔀 RDS Proxy
+    participant SM as 🔐 Secrets Manager
+    participant DB as 🐘 RDS Primary
+
+    Note over App,DB: With RDS Proxy (Production)
+    App->>Proxy: Connection Request
+    Proxy->>SM: Get Credentials
+    SM-->>Proxy: Username/Password
+    Proxy->>DB: Pooled Connection
+    DB-->>Proxy: Connection Established
+    Proxy-->>App: Connection Ready
+
+    Note over App,DB: Without Proxy (Development)
+    App->>SM: Get Credentials
+    SM-->>App: Username/Password
+    App->>DB: Direct Connection
+    DB-->>App: Connection Established
 ```
 
 ---

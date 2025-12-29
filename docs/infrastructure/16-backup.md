@@ -30,33 +30,57 @@ AWS Backup provides centralized, policy-based backup management that supplements
 
 ## Architecture
 
+```mermaid
+flowchart TB
+    subgraph Source["🐘 Source"]
+        RDS["🐘 RDS Instance"]
+    end
+
+    subgraph Plan["📅 Backup Plan"]
+        direction LR
+        Daily["🌅 Daily Backup<br/>cron(0 3 * * ? *)<br/>Retention: 7/35d"]
+        Weekly["📆 Weekly Backup<br/>(prod only)<br/>cron(0 4 ? * SUN *)<br/>Retention: 90d"]
+    end
+
+    subgraph Vault["🔒 Backup Vault"]
+        Encrypted["🔐 KMS Encrypted<br/>Recovery Points"]
+    end
+
+    RDS -->|Selected by<br/>Backup Selection| Plan
+    Daily --> Vault
+    Weekly --> Vault
 ```
-┌─────────────────────────────────────────────────────────────────┐
-│                    AWS Backup Flow                               │
-│                                                                  │
-│  ┌──────────────┐                                               │
-│  │   RDS        │                                               │
-│  │   Instance   │                                               │
-│  └──────┬───────┘                                               │
-│         │                                                        │
-│         │ Selected by Backup Selection                          │
-│         ▼                                                        │
-│  ┌──────────────────────────────────────────────────────────────┐│
-│  │                    Backup Plan                                ││
-│  │  ┌────────────────────┐  ┌────────────────────┐             ││
-│  │  │ Daily Backup Rule  │  │ Weekly Backup Rule │             ││
-│  │  │ cron(0 3 * * ? *)  │  │ cron(0 4 ? * SUN *)│ (prod only) ││
-│  │  │ Retention: 7/35d   │  │ Retention: 90d     │             ││
-│  │  └────────────────────┘  └────────────────────┘             ││
-│  └──────────────────────────────────────────────────────────────┘│
-│         │                                                        │
-│         │ Recovery points stored                                │
-│         ▼                                                        │
-│  ┌──────────────┐                                               │
-│  │ Backup Vault │                                               │
-│  │ (KMS Encrypted)│                                             │
-│  └──────────────┘                                               │
-└─────────────────────────────────────────────────────────────────┘
+
+### Backup Lifecycle
+
+```mermaid
+stateDiagram-v2
+    [*] --> Scheduled: Cron trigger (3 AM UTC)
+    Scheduled --> InProgress: Start window (60 min)
+    InProgress --> Completed: Backup successful
+    InProgress --> Failed: Completion window exceeded
+    Completed --> Stored: Recovery point in vault
+    Stored --> Expired: Retention period ends
+    Expired --> Deleted: Lifecycle rule
+    Deleted --> [*]
+    
+    note right of Stored: Dev: 7 days<br/>Prod: 35 days
+```
+
+### Recovery Options
+
+```mermaid
+flowchart LR
+    subgraph Snapshot["Snapshot Recovery"]
+        S1["⏰ Restore to snapshot time"]
+    end
+
+    subgraph PITR["PITR Recovery (Prod)"]
+        P1["⏱️ Restore to any point<br/>in last 35 days"]
+    end
+
+    Vault["🔒 Backup Vault"] --> Snapshot
+    Vault --> PITR
 ```
 
 ---

@@ -16,20 +16,41 @@ This is a minimal Route53 module that:
 
 ## Architecture
 
+```mermaid
+flowchart TB
+    subgraph HZ["🔷 domain.com (Hosted Zone - pre-existing)"]
+        direction TB
+        Apex["@ (apex) → Vercel"]
+        WWW["www → Vercel"]
+        API["api → ALB<br/><i>(created by this module)</i>"]
+    end
+
+    subgraph Routes["📋 ALB Path Routing"]
+        R1["/api/* → API Service"]
+        R2["/socket.io/* → Realtime Service"]
+        R3["/ws/* → Realtime Service"]
+    end
+
+    API --> Routes
+
+    Note1[Managed by Vercel] -.-> Apex & WWW
+    Note2[Managed by Pulumi] -.-> API
 ```
-┌─────────────────────────────────────────────────────────────────┐
-│                    DNS Architecture                              │
-│                                                                  │
-│  domain.com (Hosted Zone - pre-existing)                        │
-│  │                                                              │
-│  ├── @ (apex)        → Vercel (managed by Vercel)               │
-│  ├── www             → Vercel (managed by Vercel)               │
-│  │                                                              │
-│  └── api             → ALB (created by this module)             │
-│                        ├── /api/*       → API service           │
-│                        ├── /socket.io/* → Realtime service      │
-│                        └── /ws/*        → Realtime service      │
-└─────────────────────────────────────────────────────────────────┘
+
+### DNS Resolution Flow
+
+```mermaid
+sequenceDiagram
+    participant Client
+    participant DNS as Route 53
+    participant ALB
+    participant ECS
+
+    Client->>DNS: Query api.example.com
+    DNS->>DNS: Lookup A record (Alias)
+    DNS-->>Client: ALB IP addresses
+    Client->>ALB: HTTPS request
+    ALB->>ECS: Route to service
 ```
 
 ---

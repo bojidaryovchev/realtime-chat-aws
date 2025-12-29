@@ -16,33 +16,55 @@ This is the largest module (~1063 lines) providing comprehensive monitoring:
 
 ## Architecture
 
+```mermaid
+flowchart TB
+    subgraph Dashboard["📊 CloudWatch Dashboard"]
+        direction LR
+        ECS["🔷 ECS Services<br/>CPU/Memory<br/>Task Count"]
+        ALB["⚖️ ALB<br/>Requests<br/>Latency"]
+        DB["🐘 RDS/Redis<br/>Connections<br/>IOPS"]
+        Custom["📱 Custom<br/>WebSocket<br/>Event Loop"]
+    end
+
+    subgraph Alarms["🚨 CloudWatch Alarms"]
+        direction LR
+        A1["API CPU"]
+        A2["Realtime CPU"]
+        A3["RDS CPU"]
+        A4["Redis Memory"]
+        A5["ALB 5xx"]
+        A6["DLQ Messages"]
+    end
+
+    subgraph SNS["📢 SNS Alert Topic"]
+        Email["📧 Email"]
+        PD["📟 PagerDuty"]
+        Slack["💬 Slack"]
+    end
+
+    Dashboard --> Alarms
+    Alarms --> SNS
 ```
-┌─────────────────────────────────────────────────────────────────────┐
-│                    Observability Architecture                        │
-│                                                                      │
-│  ┌─────────────────────────────────────────────────────────────────┐│
-│  │                   CloudWatch Dashboard                           ││
-│  │  ┌───────────┐ ┌───────────┐ ┌───────────┐ ┌───────────┐       ││
-│  │  │ECS Services│ │   ALB     │ │RDS/Redis  │ │ Custom    │       ││
-│  │  │CPU/Memory │ │Requests   │ │Connections│ │WebSocket  │       ││
-│  │  │Task Count │ │Latency    │ │IOPS       │ │Event Loop │       ││
-│  │  └───────────┘ └───────────┘ └───────────┘ └───────────┘       ││
-│  └─────────────────────────────────────────────────────────────────┘│
-│                             │                                        │
-│                             ▼                                        │
-│  ┌─────────────────────────────────────────────────────────────────┐│
-│  │                   CloudWatch Alarms                              ││
-│  │  [API CPU] [Realtime CPU] [RDS CPU] [Redis Memory] [ALB 5xx]   ││
-│  │  [DLQ Messages] [Old Messages] [Unhealthy Targets] [Replica]   ││
-│  └──────────────────────────┬──────────────────────────────────────┘│
-│                             │                                        │
-│                             ▼                                        │
-│  ┌─────────────────────────────────────────────────────────────────┐│
-│  │                     SNS Alert Topic                              ││
-│  │           ↓             ↓             ↓                         ││
-│  │       [Email]      [PagerDuty]    [Slack]                       ││
-│  └─────────────────────────────────────────────────────────────────┘│
-└─────────────────────────────────────────────────────────────────────┘
+
+### Alert Flow
+
+```mermaid
+sequenceDiagram
+    participant Metric as CloudWatch Metric
+    participant Alarm as CloudWatch Alarm
+    participant SNS as SNS Topic
+    participant OnCall as On-Call Engineer
+
+    Metric->>Alarm: Value exceeds threshold
+    Note over Alarm: 3 consecutive<br/>evaluation periods
+    Alarm->>Alarm: State: OK → ALARM
+    Alarm->>SNS: Publish notification
+    SNS->>OnCall: Email/PagerDuty/Slack
+    
+    Note over Metric: Value returns to normal
+    Alarm->>Alarm: State: ALARM → OK
+    Alarm->>SNS: Publish recovery
+    SNS->>OnCall: Recovery notification
 ```
 
 ---
