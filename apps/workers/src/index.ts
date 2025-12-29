@@ -3,7 +3,7 @@ import { logger } from "./lib/logger.js";
 import { createPushConsumer } from "./consumers/push.js";
 import { createOfflineConsumer } from "./consumers/offline.js";
 
-const HEALTH_PORT = parseInt(process.env.HEALTH_PORT || "3002", 10);
+const HEALTH_PORT = parseInt(process.env.HEALTH_PORT || "3003", 10);
 
 // Health check server (required for ECS)
 const healthServer = createServer((req, res) => {

@@ -98,13 +98,22 @@ export async function userRoutes(fastify: FastifyInstance) {
 
     if (existingUser) {
       if (existingUser.auth0Id === auth0Sub) {
-        return reply.status(409).send({ error: "User already registered" });
+        return reply.status(409).send({ 
+          error: "Conflict", 
+          message: "User already registered" 
+        });
       }
       if (existingUser.email === email) {
-        return reply.status(409).send({ error: "Email already in use" });
+        return reply.status(409).send({ 
+          error: "Conflict", 
+          message: "Email already in use" 
+        });
       }
       if (existingUser.username === body.username) {
-        return reply.status(409).send({ error: "Username already taken" });
+        return reply.status(409).send({ 
+          error: "Conflict", 
+          message: "Username already taken" 
+        });
       }
     }
 

@@ -9,7 +9,10 @@
     "build": "tsc",
     "start": "node dist/index.js",
     "lint": "eslint src/",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run --passWithNoTests",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage --passWithNoTests"
   },
   "dependencies": {
     "@aws-sdk/client-sqs": "^3.490.0",
@@ -29,7 +32,7 @@
   "devDependencies": {
     "@types/node": "^20.10.6",
     "tsx": "^4.7.0",
-    "typescript": "^5.5.0"
+    "typescript": "^5.7.3"
   },
   "engines": {
     "node": ">=20.0.0"

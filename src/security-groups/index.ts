@@ -80,8 +80,8 @@ export function createSecurityGroups(
     ingress: [
       {
         description: "HTTP from ALB",
-        fromPort: 3000,
-        toPort: 3000,
+        fromPort: 3001,
+        toPort: 3001,
         protocol: "tcp",
         securityGroups: [albSecurityGroup.id],
       },
@@ -113,8 +113,8 @@ export function createSecurityGroups(
       ingress: [
         {
           description: "HTTP/WebSocket from ALB",
-          fromPort: 3001,
-          toPort: 3001,
+          fromPort: 3002,
+          toPort: 3002,
           protocol: "tcp",
           securityGroups: [albSecurityGroup.id],
         },

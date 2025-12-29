@@ -11,7 +11,7 @@ import { createRedisClient } from "./lib/redis.js";
 import { loggerOptions } from "./lib/logger.js";
 import authPlugin from "./lib/authPlugin.js";
 
-const PORT = parseInt(process.env.PORT || "3002", 10);
+const PORT = parseInt(process.env.PORT || "3001", 10);
 const HOST = process.env.HOST || "0.0.0.0";
 
 async function main() {
@@ -41,10 +41,14 @@ async function main() {
   fastify.decorate("redis", redis);
 
   // Register routes
+  // All routes are prefixed with /api to match ALB path-based routing
+  await fastify.register(healthRoutes, { prefix: "/api/health" });
+  await fastify.register(userRoutes, { prefix: "/api/users" });
+  await fastify.register(conversationRoutes, { prefix: "/api/conversations" });
+  await fastify.register(messageRoutes, { prefix: "/api/messages" });
+
+  // Root health check for ALB target group (expects /health)
   await fastify.register(healthRoutes, { prefix: "/health" });
-  await fastify.register(userRoutes, { prefix: "/users" });
-  await fastify.register(conversationRoutes, { prefix: "/conversations" });
-  await fastify.register(messageRoutes, { prefix: "/messages" });
 
   // Graceful shutdown
   const signals: NodeJS.Signals[] = ["SIGINT", "SIGTERM"];

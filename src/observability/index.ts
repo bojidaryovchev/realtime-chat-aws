@@ -686,16 +686,6 @@ export function createObservability(
 
   // ==================== CloudWatch Dashboard ====================
 
-  // Build base inputs for the dashboard
-  const dashboardInputs: pulumi.Output<string>[] = [
-    ecsClusterOutputs.cluster.name,
-    ecsServicesOutputs.apiService.name,
-    ecsServicesOutputs.realtimeService.name,
-    rdsOutputs.dbInstance.identifier,
-    redisOutputs.redisCluster.id,
-    albOutputs.alb.arnSuffix,
-  ];
-
   // Add workers service name if available
   const workersServiceNameOutput = workersServiceOutputs
     ? workersServiceOutputs.workersService.name

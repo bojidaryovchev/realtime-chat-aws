@@ -1,4 +1,4 @@
-const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3002";
+const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
 
 interface ApiClientOptions {
   token?: string;
@@ -41,16 +41,16 @@ async function request<T>(
 
 // User endpoints
 export const userApi = {
-  me: (token: string) => request<User>("/users/me", { token }),
+  me: (token: string) => request<User>("/api/users/me", { token }),
 
   register: (token: string, data: { username: string; displayName?: string }) =>
-    request<User>("/users/register", {
+    request<User>("/api/users/register", {
       method: "POST",
       token,
       body: JSON.stringify(data),
     }),
 
-  getById: (token: string, id: string) => request<User>(`/users/${id}`, { token }),
+  getById: (token: string, id: string) => request<User>(`/api/users/${id}`, { token }),
 };
 
 // Conversation endpoints
@@ -60,13 +60,13 @@ export const conversationApi = {
     if (params?.limit) searchParams.set("limit", params.limit.toString());
     if (params?.cursor) searchParams.set("cursor", params.cursor);
     const query = searchParams.toString();
-    return request<ConversationsResponse>(`/conversations${query ? `?${query}` : ""}`, { token });
+    return request<ConversationsResponse>(`/api/conversations${query ? `?${query}` : ""}`, { token });
   },
 
-  get: (token: string, id: string) => request<Conversation>(`/conversations/${id}`, { token }),
+  get: (token: string, id: string) => request<Conversation>(`/api/conversations/${id}`, { token }),
 
   create: (token: string, data: { name?: string; type: "DIRECT" | "GROUP"; participantIds: string[] }) =>
-    request<Conversation>("/conversations", {
+    request<Conversation>("/api/conversations", {
       method: "POST",
       token,
       body: JSON.stringify(data),
@@ -81,11 +81,11 @@ export const messageApi = {
     if (params?.limit) searchParams.set("limit", params.limit.toString());
     if (params?.before) searchParams.set("before", params.before);
     const query = searchParams.toString();
-    return request<MessagesResponse>(`/messages?${query}`, { token });
+    return request<MessagesResponse>(`/api/messages?${query}`, { token });
   },
 
   send: (token: string, conversationId: string, data: { content: string; type?: "TEXT" | "IMAGE" | "FILE" }) =>
-    request<Message>(`/messages`, {
+    request<Message>(`/api/messages`, {
       method: "POST",
       token,
       body: JSON.stringify({ ...data, conversationId }),

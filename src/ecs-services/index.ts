@@ -126,14 +126,14 @@ export function createEcsServices(
                 essential: true,
                 portMappings: [
                   {
-                    containerPort: 3000,
-                    hostPort: 3000,
+                    containerPort: 3001,
+                    hostPort: 3001,
                     protocol: "tcp",
                   },
                 ],
                 environment: [
                   { name: "NODE_ENV", value: config.environment },
-                  { name: "PORT", value: "3000" },
+                  { name: "PORT", value: "3001" },
                   { name: "DATABASE_HOST", value: dbEndpoint.split(":")[0] },
                   { name: "DATABASE_PORT", value: "5432" },
                   { name: "DATABASE_NAME", value: "chatdb" },
@@ -146,7 +146,8 @@ export function createEcsServices(
                   { name: "LOG_LEVEL", value: config.environment === "prod" ? "info" : "debug" },
                   { name: "AUTH0_DOMAIN", value: config.auth0Domain },
                   { name: "AUTH0_AUDIENCE", value: config.auth0Audience },
-                  // CORS: Vercel web frontend URL (set in stack config or use domain)
+                  // CORS: Allow requests from web frontend
+                  { name: "CORS_ORIGIN", value: `https://${config.domainName}` },
                   { name: "WEB_URL", value: `https://${config.domainName}` },
                   { name: "API_URL", value: `https://api.${config.domainName}` },
                 ],
@@ -173,7 +174,7 @@ export function createEcsServices(
                   },
                 },
                 healthCheck: {
-                  command: ["CMD-SHELL", "wget -q --spider http://localhost:3000/health || exit 1"],
+                  command: ["CMD-SHELL", "wget -q --spider http://localhost:3001/health || exit 1"],
                   interval: 30,
                   timeout: 5,
                   retries: 3,
@@ -214,7 +215,7 @@ export function createEcsServices(
       {
         targetGroupArn: albOutputs.apiTargetGroup.arn,
         containerName: "api",
-        containerPort: 3000,
+        containerPort: 3001,
       },
     ],
 
@@ -286,14 +287,14 @@ export function createEcsServices(
                 essential: true,
                 portMappings: [
                   {
-                    containerPort: 3001,
-                    hostPort: 3001,
+                    containerPort: 3002,
+                    hostPort: 3002,
                     protocol: "tcp",
                   },
                 ],
                 environment: [
                   { name: "NODE_ENV", value: config.environment },
-                  { name: "PORT", value: "3001" },
+                  { name: "PORT", value: "3002" },
                   { name: "DATABASE_HOST", value: dbEndpoint.split(":")[0] },
                   { name: "DATABASE_PORT", value: "5432" },
                   { name: "DATABASE_NAME", value: "chatdb" },
@@ -311,7 +312,8 @@ export function createEcsServices(
                   { name: "LOG_LEVEL", value: config.environment === "prod" ? "info" : "debug" },
                   { name: "AUTH0_DOMAIN", value: config.auth0Domain },
                   { name: "AUTH0_AUDIENCE", value: config.auth0Audience },
-                  // CORS: Vercel web frontend URL
+                  // CORS: Allow requests from web frontend
+                  { name: "CORS_ORIGIN", value: `https://${config.domainName}` },
                   { name: "WEB_URL", value: `https://${config.domainName}` },
                   { name: "API_URL", value: `https://api.${config.domainName}` },
                   // Socket.IO specific
@@ -348,7 +350,7 @@ export function createEcsServices(
                   },
                 },
                 healthCheck: {
-                  command: ["CMD-SHELL", "wget -q --spider http://localhost:3001/health || exit 1"],
+                  command: ["CMD-SHELL", "wget -q --spider http://localhost:3002/health || exit 1"],
                   interval: 30,
                   timeout: 5,
                   retries: 3,
@@ -392,7 +394,7 @@ export function createEcsServices(
         {
           targetGroupArn: albOutputs.realtimeTargetGroup.arn,
           containerName: "realtime",
-          containerPort: 3001,
+          containerPort: 3002,
         },
       ],
 

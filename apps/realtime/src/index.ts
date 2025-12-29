@@ -9,7 +9,7 @@ import { createRedisClient } from "./lib/redis.js";
 import { setupSocketHandlers } from "./socket/handlers.js";
 import { loggerOptions } from "./lib/logger.js";
 
-const PORT = parseInt(process.env.PORT || "3001", 10);
+const PORT = parseInt(process.env.PORT || "3002", 10);
 const HOST = process.env.HOST || "0.0.0.0";
 
 async function main() {

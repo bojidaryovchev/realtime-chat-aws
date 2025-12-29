@@ -102,7 +102,7 @@ jobs:
             dockerfile: apps/realtime/Dockerfile
             context: .
           - service: workers
-            dockerfile: apps/api/Dockerfile  # Update when workers Dockerfile exists
+            dockerfile: apps/workers/Dockerfile
             context: .
     outputs:
       api-image: ${{ steps.build.outputs.api-image }}

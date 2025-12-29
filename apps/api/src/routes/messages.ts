@@ -27,7 +27,10 @@ export async function messageRoutes(fastify: FastifyInstance) {
     });
 
     if (!user) {
-      return reply.status(404).send({ error: "User not found" });
+      return reply.status(404).send({ 
+        error: "Not Found", 
+        message: "User not found" 
+      });
     }
 
     const senderId = user.id;

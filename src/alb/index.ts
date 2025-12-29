@@ -146,7 +146,7 @@ export function createAlb(
   // API Target Group
   const apiTargetGroup = new aws.lb.TargetGroup(`${baseName}-api-tg`, {
     name: `${baseName}-api-tg`,
-    port: 3000,
+    port: 3001,
     protocol: "HTTP",
     targetType: "ip",
     vpcId: vpcOutputs.vpc.id,
@@ -172,7 +172,7 @@ export function createAlb(
   // Realtime Target Group (with stickiness for Socket.IO)
   const realtimeTargetGroup = new aws.lb.TargetGroup(`${baseName}-realtime-tg`, {
     name: `${baseName}-realtime-tg`,
-    port: 3001,
+    port: 3002,
     protocol: "HTTP",
     targetType: "ip",
     vpcId: vpcOutputs.vpc.id,

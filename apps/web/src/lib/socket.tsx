@@ -22,7 +22,7 @@ export function SocketProvider({ children, url }: SocketProviderProps) {
   const [isConnected, setIsConnected] = useState(false);
 
   const connect = useCallback((token: string) => {
-    const socketUrl = url || process.env.NEXT_PUBLIC_REALTIME_URL || "http://localhost:3001";
+    const socketUrl = url || process.env.NEXT_PUBLIC_REALTIME_URL || "http://localhost:3002";
     
     const newSocket = io(socketUrl, {
       auth: { token },

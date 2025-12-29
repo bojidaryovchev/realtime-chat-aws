@@ -110,8 +110,8 @@ export function createWorkersService(
                 // Port mapping for internal health checks (not exposed via ALB)
                 portMappings: [
                   {
-                    containerPort: 3002,
-                    hostPort: 3002,
+                    containerPort: 3003,
+                    hostPort: 3003,
                     protocol: "tcp",
                   },
                 ],
@@ -139,7 +139,7 @@ export function createWorkersService(
                   { name: "AWS_REGION", value: region },
                   { name: "LOG_LEVEL", value: config.environment === "prod" ? "info" : "debug" },
                   // Health check port (workers should expose a simple health endpoint)
-                  { name: "HEALTH_PORT", value: "3002" },
+                  { name: "HEALTH_PORT", value: "3003" },
                 ],
                 secrets: [
                   {
@@ -166,7 +166,7 @@ export function createWorkersService(
                 // Health check - workers should expose HTTP health endpoint on HEALTH_PORT
                 // The endpoint should verify connectivity to SQS, Redis, and database
                 healthCheck: {
-                  command: ["CMD-SHELL", "wget -q --spider http://localhost:3002/health || exit 1"],
+                  command: ["CMD-SHELL", "wget -q --spider http://localhost:3003/health || exit 1"],
                   interval: 30,
                   timeout: 5,
                   retries: 3,
