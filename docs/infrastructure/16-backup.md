@@ -64,7 +64,10 @@ stateDiagram-v2
     Expired --> Deleted: Lifecycle rule
     Deleted --> [*]
     
-    note right of Stored: Dev: 7 days<br/>Prod: 35 days
+    note right of Stored
+        Dev: 7 days
+        Prod: 35 days
+    end note
 ```
 
 ### Recovery Options

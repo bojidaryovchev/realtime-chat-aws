@@ -38,20 +38,20 @@ flowchart TB
 
     subgraph AWS["☁️ AWS Cloud"]
         subgraph Edge["Edge Layer"]
-            WAF[🛡️ WAF<br/>Rate Limiting]
-            ALB[⚖️ Application Load Balancer<br/>/api/* → API | /socket.io/* → Realtime]
+            WAF["🛡️ WAF\nRate Limiting"]
+            ALB["⚖️ Application Load Balancer\n/api/* → API | /socket.io/* → Realtime"]
         end
 
         subgraph Compute["ECS Fargate"]
-            API[🔷 API Service<br/>Fastify REST]
-            RT[🔷 Realtime Service<br/>Socket.IO]
-            Workers[🔷 Workers<br/>SQS Consumer]
+            API["🔷 API Service\nFastify REST"]
+            RT["🔷 Realtime Service\nSocket.IO"]
+            Workers["🔷 Workers\nSQS Consumer"]
         end
 
         subgraph Data["Data Layer"]
-            RDS[(🐘 RDS<br/>PostgreSQL)]
-            Redis[(⚡ Redis<br/>ElastiCache)]
-            SQS[📬 SQS<br/>Queues]
+            RDS[("🐘 RDS\nPostgreSQL")]
+            Redis[("⚡ Redis\nElastiCache")]
+            SQS["📬 SQS\nQueues"]
         end
 
         subgraph Support["Supporting Services"]
